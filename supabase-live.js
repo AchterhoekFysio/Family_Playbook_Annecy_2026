@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.ANNECY_SUPABASE || {};
   const configured = cfg.url && cfg.publishableKey && !cfg.url.includes('YOUR-PROJECT') && !cfg.publishableKey.includes('YOUR_KEY');
-  const state = { client:null, user:null, player:null, group:null, channel:null, players:[], isAdmin:false, playingAs:null, playingAsName:null };
+  const state = { client:null, user:null, player:null, group:null, channel:null, players:[], isAdmin:false, locked:false, playingAs:null, playingAsName:null };
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const setMessage = (text, ok=false) => { const e=$('liveMessage'); if(e){e.textContent=text;e.className='liveStatus '+(ok?'liveOk':'liveError');} };
@@ -49,7 +49,7 @@
     if($('liveGroupName')) $('liveGroupName').textContent=state.group.name;
     if($('livePlayerLabel')) $('livePlayerLabel').textContent=`Ingelogd als ${state.player.display_name} · code ${state.group.join_code}`;
     $('offlineScoreControls')?.classList.add('liveHidden');
-    try{ const r=await state.client.rpc('am_i_game_admin'); state.isAdmin=!!(r&&r.data); }catch(e){ state.isAdmin=false; }
+    try{ const r=await state.client.rpc('my_group_flags'); const row=Array.isArray(r.data)?r.data[0]:r.data; state.isAdmin=!!(row&&row.is_admin); state.locked=!!(row&&row.locked); }catch(e){ state.isAdmin=false; state.locked=false; }
     await refreshPlayers(); subscribe(); setConnection('Live verbonden');
   }
   function showJoin(){
@@ -70,10 +70,11 @@
     if(!state.group){ if(typeof window.renderFamilyScores==='function') window.renderFamilyScores(); return; }
     const h=$('familyScores'); if(!h)return;
     const admin=!!state.isAdmin;
+    const canEdit=admin && !state.locked;
     const chip='padding:6px 11px;border-radius:999px;border:1px solid #d5e0dd;font-size:13px;cursor:pointer;font-weight:700';
     const guests=state.players.filter(p=>!p.active);
     let bar='';
-    if(guests.length){
+    if(guests.length && !state.locked){
       bar='<div style="background:#eef4f4;border-radius:12px;padding:10px;margin-bottom:12px">'
         +'<div style="font-weight:800;font-size:13px;color:#0d3550;margin-bottom:6px">📱 Wie speelt er nu op deze telefoon?</div>'
         +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
@@ -84,12 +85,21 @@
         +'</div>';
     }
     const rows=state.players.map((p,i)=>{
-      const ctrl = admin ? `<button onclick="scorePlayer('${p.id}',-1)">−</button><button onclick="scorePlayer('${p.id}',1)">+</button><input class="qsIn" type="number" inputmode="numeric" placeholder="±" data-pid="${p.id}" style="width:50px;margin-left:6px"><button onclick="quickScore(this)">OK</button>` : '';
+      const ctrl = canEdit ? `<button onclick="scorePlayer('${p.id}',-1)">−</button><button onclick="scorePlayer('${p.id}',1)">+</button><input class="qsIn" type="number" inputmode="numeric" placeholder="±" data-pid="${p.id}" style="width:50px;margin-left:6px"><button onclick="quickScore(this)">OK</button>` : '';
       return `<div class="scoreRow ${p.id===state.player.id?'me':''}"><b>${i+1}. <span style="color:${p.active?'#37b26b':'#c7d2cf'}">●</span> <span onclick="AnnecyPlayerGames('${p.id}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">${esc(p.display_name)}</span>${p.id===state.player.id?' · jij':''}${p.active?'':' <span style="font-weight:400;color:#9aa8a4;font-size:11px">(nog niet ingelogd)</span>'}</b><span>${p.score}</span>${ctrl}</div>`;
     }).join('')||'<p class="small">Nog geen spelers.</p>';
-    h.innerHTML=bar+rows;
-    if(admin) h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px" onclick="addManualPlayer()">+ Speler toevoegen (zonder telefoon)</button>');
-    else h.insertAdjacentHTML('beforeend','<p class="small" style="margin-top:8px;color:#9aa8a4">De beheerder beheert de handmatige scores. Jouw spelpunten tellen automatisch mee.</p>');
+    const lockBanner = state.locked ? '<div style="background:#fff4d6;border:1px solid #f0d98a;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-weight:800;color:#8a6d1a">🔒 De vakantiescore is definitief gemaakt. Er kunnen geen punten meer bij.</div>' : '';
+    h.innerHTML=lockBanner+bar+rows;
+    if(admin){
+      if(!state.locked){
+        h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px" onclick="addManualPlayer()">+ Speler toevoegen (zonder telefoon)</button>');
+        h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px;background:#ffece0;color:#c0392b;font-weight:800" onclick="AnnecyLockScores(true)">🔒 Score definitief maken (einde vakantie)</button>');
+      } else {
+        h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px" onclick="AnnecyLockScores(false)">🔓 Weer openstellen (ontgrendelen)</button>');
+      }
+    } else {
+      h.insertAdjacentHTML('beforeend','<p class="small" style="margin-top:8px;color:#9aa8a4">'+(state.locked?'De vakantiescore is definitief gemaakt door de beheerder.':'De beheerder beheert de handmatige scores. Jouw spelpunten tellen automatisch mee.')+'</p>');
+    }
     h.insertAdjacentHTML('beforeend','<p class="small" style="margin-top:6px;color:#9aa8a4">Tip: tik op een naam om te zien welke spellen die persoon heeft gespeeld.</p>');
   }
   window.changeLiveScore = async function(delta,reason='spel'){
@@ -116,6 +126,12 @@
     ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
     document.body.appendChild(ov);
     var cb=document.getElementById('pgClose'); if(cb) cb.onclick=function(){ ov.remove(); };
+  };
+  window.AnnecyLockScores=async function(lock){
+    if(!state.isAdmin) return;
+    if(lock && !confirm('Score definitief maken? Daarna kunnen er geen punten meer bij. Jij kunt het later weer openstellen.')) return;
+    try{ const r=await state.client.rpc('set_group_locked',{p_locked:!!lock}); state.locked=!!(r&&r.data); }catch(e){ alert('Lukte niet'); return; }
+    renderLiveScores();
   };
   const originalToggleBingo=window.toggleBingo;
   window.toggleBingo=async function(i){

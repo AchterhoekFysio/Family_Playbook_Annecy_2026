@@ -90,6 +90,8 @@
   function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
   function toast(m){ let t=document.getElementById('pbToast'); if(!t){t=document.createElement('div');t.id='pbToast';t.style.cssText='position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#0d3550;color:#fff;padding:11px 18px;border-radius:999px;font-weight:800;font-size:14px;z-index:6000;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transition:opacity .2s';document.body.appendChild(t);} t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',2200); }
   function albName(k){ const a=ALBUMS.find(x=>x[0]===(k||album)); return a?a[1]:k; }
+  // Verkleinde thumbnail via Supabase image-transform (houdt het album snel bij veel/grote foto's).
+  function thumb(url,w){ try{ if(!url||url.indexOf('/storage/v1/object/public/')<0) return url; return url.replace('/storage/v1/object/public/','/storage/v1/render/image/public/')+(url.indexOf('?')>-1?'&':'?')+'width='+(w||400)+'&quality=62'; }catch(e){ return url; } }
   function sizeObj(){ return SIZES.find(s=>s.k===(cfg&&cfg.size||'sq21'))||SIZES[0]; }
 
   const defaultCfg=()=>({title:albName(),subtitle:"Camping l'Idéal · Lac d'Annecy · 6–16 aug 2026",size:'sq21',layout:2,cover:null,order:[],hidden:[]});
@@ -177,7 +179,7 @@
     const grid=el('<div class="pbGrid"></div>');
     ordered().forEach(p=>{
       const hidden=cfg.hidden.includes(p.id), isCover=cfg.cover===p.id;
-      const cell=el('<div class="pbCell '+(isCover?'cover':'')+'"><img loading="lazy" src="'+esc(p.url)+'" alt="">'+(isCover?'<span class="pbCoverBadge">COVER</span>':'')+(p.caption?'<span class="tag">'+esc(p.caption)+'</span>':'')+(hidden?'<span class="hid">🚫</span>':'')+'</div>');
+      const cell=el('<div class="pbCell '+(isCover?'cover':'')+'"><img loading="lazy" decoding="async" src="'+esc(thumb(p.url,420))+'" alt="">'+(isCover?'<span class="pbCoverBadge">COVER</span>':'')+(p.caption?'<span class="tag">'+esc(p.caption)+'</span>':'')+(hidden?'<span class="hid">🚫</span>':'')+'</div>');
       cell.onclick=()=>{ openPhotoId=(openPhotoId===p.id?null:p.id); render(); };
       grid.appendChild(cell);
       if(openPhotoId===p.id) grid.appendChild(photoEditor(p));
@@ -236,6 +238,7 @@
     if(!list.length){ wrap.appendChild(el('<p class="pbNote">Voeg eerst foto\'s toe in het Album-tabblad.</p>')); return; }
     const nPages=1+Math.ceil(list.length/(cfg.layout||2));
     wrap.appendChild(el('<p class="pbNote"><b>'+list.length+' foto\'s</b> · '+nPages+' pagina\'s (incl. cover). Cover kies je in het Album (☆ Als cover); anders wordt de eerste foto gebruikt.</p>'));
+    const vw=el('<button class="pbBtn alt">👁 Bekijk als digitaal boek (inkijkexemplaar)</button>'); vw.onclick=openViewer; wrap.appendChild(vw);
 
     const dl=el('<button class="pbBtn primary">⬇️ Print-klare PDF maken (voor Albelli)</button>'); dl.onclick=()=>exportPDF(dl); wrap.appendChild(dl);
     wrap.appendChild(el('<p class="pbNote">De PDF krijgt de gekozen paginamaat + 3&nbsp;mm afloop (bleed) en foto\'s op ~300&nbsp;dpi. Upload \'m bij Albelli via hun <b>PDF-fotoboek / zelf-ontworpen boek</b> optie. Let op: controleer bij Albelli de exacte maat en of ze losse pagina\'s of spreads willen.</p>'));
@@ -258,7 +261,7 @@
     const cov=coverPhoto();
     const cpage=el('<div class="pbPage" style="aspect-ratio:'+ar+'"></div>');
     const cvr=el('<div class="pbCover" style="width:100%;height:100%"></div>');
-    if(cov) cvr.appendChild(el('<img src="'+esc(cov.url)+'">'));
+    if(cov) cvr.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(cov.url,1000))+'">'));
     cvr.appendChild(el('<div class="ct"><div class="eb">ANNECY 2026</div><h3>'+esc(cfg.title||albName())+'</h3>'+(cfg.subtitle?'<p>'+esc(cfg.subtitle)+'</p>':'')+'</div>'));
     cpage.appendChild(cvr); cpage.appendChild(el('<span class="pglabel">cover</span>')); host.appendChild(cpage);
     // content
@@ -267,7 +270,7 @@
       const chunk=list.slice(i,i+per);
       const page=el('<div class="pbPage" style="aspect-ratio:'+ar+'"></div>');
       const canvas=el('<div class="pbCanvas '+(per===1?'full':'')+'" style="grid-template-columns:repeat('+cols+',1fr)"></div>');
-      chunk.forEach(p=>{ const fig=el('<figure></figure>'); fig.appendChild(el('<img src="'+esc(p.url)+'">')); if(p.caption&&per>1) fig.appendChild(el('<figcaption>'+esc(p.caption)+'</figcaption>')); canvas.appendChild(fig); });
+      chunk.forEach(p=>{ const fig=el('<figure></figure>'); fig.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,760))+'">')); if(p.caption&&per>1) fig.appendChild(el('<figcaption>'+esc(p.caption)+'</figcaption>')); canvas.appendChild(fig); });
       page.appendChild(canvas); page.appendChild(el('<span class="pglabel">'+((i/per)+2)+'</span>')); host.appendChild(page);
     }
   }
@@ -387,16 +390,17 @@
     wrap.appendChild(el('<p class="pbNote" style="margin:10px 0 2px">Tik een foto om \'m op de pagina te zetten:</p>'));
     const strip=el('<div class="dsStrip"></div>');
     if(!photos.length) strip.appendChild(el('<span class="pbNote">Nog geen foto\'s — voeg ze toe in het Album.</span>'));
-    ordered().forEach(p=>{ const im=el('<img src="'+esc(p.url)+'">'); im.onclick=()=>{ page.items.push({t:'photo',id:uid(),photo:p.id,x:15,y:20,w:55,h:42,shape:'round',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; strip.appendChild(im); });
+    ordered().forEach(p=>{ const im=el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,170))+'">'); im.onclick=()=>{ page.items.push({t:'photo',id:uid(),photo:p.id,x:15,y:20,w:55,h:42,shape:'round',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; strip.appendChild(im); });
     wrap.appendChild(strip);
 
-    const dl=el('<button class="pbBtn primary" style="margin-top:14px">⬇️ Ontwerp als print-PDF (voor Albelli)</button>'); dl.onclick=()=>exportDesignPDF(dl); wrap.appendChild(dl);
+    const vw2=el('<button class="pbBtn alt" style="margin-top:14px">👁 Bekijk als digitaal boek (inkijkexemplaar)</button>'); vw2.onclick=openViewer; wrap.appendChild(vw2);
+    const dl=el('<button class="pbBtn primary" style="margin-top:8px">⬇️ Ontwerp als print-PDF (voor Albelli)</button>'); dl.onclick=()=>exportDesignPDF(dl); wrap.appendChild(dl);
     wrap.appendChild(el('<p class="pbNote">Je vrije ontwerp wordt op de gekozen paginamaat geëxporteerd. Houd belangrijke dingen iets van de rand i.v.m. Albelli\'s afsnijding.</p>'));
   }
 
   function renderItem(it,page){
     const node=el('<div class="dsItem'+(desSel===it.id?' sel':'')+'" style="left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
-    if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img src="'+(p?esc(p.url):'')+'">'); img.style.borderRadius=shapeCss(it.shape); node.appendChild(img); }
+    if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img loading="lazy" decoding="async" src="'+(p?esc(thumb(p.url,1000)):'')+'">'); img.style.borderRadius=shapeCss(it.shape); node.appendChild(img); }
     else { const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left'); tx.textContent=it.text||''; tx.addEventListener('pointerdown',e=>{ e.stopPropagation(); desSel=it.id; render(); }); tx.addEventListener('blur',()=>{ it.text=tx.textContent; scheduleSave(); }); node.appendChild(tx); }
     const rsz=el('<div class="rsz"></div>'); node.appendChild(rsz);
     dragItem(node,it); resizeItem(rsz,node,it);
@@ -472,6 +476,50 @@
       toast('PDF gedownload ✓');
     }catch(e){ console.error(e); alert('PDF maken lukte niet. Probeer opnieuw of met minder items.'); }
     finally{ if(stage&&stage.parentNode) stage.parentNode.removeChild(stage); if(btn){ btn.disabled=false; btn.textContent=old; } }
+  }
+
+  /* ---------- DIGITAAL INKIJKEXEMPLAAR ---------- */
+  function openViewer(){
+    const s=sizeObj(), ar=s.w/s.h;
+    const ov=document.createElement('div'); ov.id='pbViewer';
+    ov.style.cssText='position:fixed;inset:0;z-index:5000;background:#0d3550;overflow-y:auto;padding:16px 12px 40px';
+    const top=document.createElement('div'); top.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;max-width:600px;margin:0 auto 12px;color:#fff';
+    top.innerHTML='<b style="font-size:15px">📖 Inkijkexemplaar — '+esc(albName())+'</b>';
+    const cl=document.createElement('button'); cl.textContent='✕ Sluiten'; cl.style.cssText='background:#ffffff22;color:#fff;border:none;border-radius:10px;padding:8px 12px;font-weight:800;cursor:pointer;flex:0 0 auto'; cl.onclick=()=>ov.remove(); top.appendChild(cl);
+    ov.appendChild(top);
+    const host=document.createElement('div'); host.style.cssText='max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:16px'; ov.appendChild(host);
+    if(tab==='design'){
+      ensurePages();
+      (cfg.pages||[]).forEach((page,idx)=>{
+        const pg=el('<div class="pbPage" style="max-width:600px;aspect-ratio:'+ar+';background:'+bgCss(page.bg)+';container-type:size"></div>');
+        (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>{
+          const n=el('<div style="position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
+          if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); n.innerHTML='<img loading="lazy" src="'+(p?esc(thumb(p.url,1000)):'')+'" style="width:100%;height:100%;object-fit:cover;border-radius:'+shapeCss(it.shape)+'">'; }
+          else { const t=el('<div style="width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left')+';padding:4px 6px;overflow:hidden;line-height:1.15"></div>'); t.textContent=it.text||''; n.appendChild(t); }
+          pg.appendChild(n);
+        });
+        pg.appendChild(el('<span style="position:absolute;bottom:4px;right:8px;font-size:10px;color:#9fb3c2">'+(idx+1)+'</span>'));
+        host.appendChild(pg);
+      });
+      if(!cfg.pages.length||!(cfg.pages[0].items||[]).length) host.appendChild(el('<p style="color:#cdd;text-align:center">Nog niets ontworpen — voeg foto\'s en tekst toe in Ontwerpen.</p>'));
+    } else {
+      const cov=coverPhoto();
+      const cp=el('<div class="pbPage" style="max-width:600px;aspect-ratio:'+ar+'"></div>');
+      const cvr=el('<div class="pbCover" style="width:100%;height:100%"></div>');
+      if(cov) cvr.appendChild(el('<img loading="lazy" src="'+esc(thumb(cov.url,1100))+'">'));
+      cvr.appendChild(el('<div class="ct"><div class="eb">ANNECY 2026</div><h3>'+esc(cfg.title||albName())+'</h3>'+(cfg.subtitle?'<p>'+esc(cfg.subtitle)+'</p>':'')+'</div>'));
+      cp.appendChild(cvr); host.appendChild(cp);
+      const list=inBook(), per=cfg.layout||2, cols=per===4?2:1;
+      for(let i=0;i<list.length;i+=per){
+        const chunk=list.slice(i,i+per);
+        const pg=el('<div class="pbPage" style="max-width:600px;aspect-ratio:'+ar+'"></div>');
+        const cvn=el('<div class="pbCanvas '+(per===1?'full':'')+'" style="grid-template-columns:repeat('+cols+',1fr)"></div>');
+        chunk.forEach(p=>{ const fig=el('<figure></figure>'); fig.appendChild(el('<img loading="lazy" src="'+esc(thumb(p.url,900))+'">')); if(p.caption&&per>1) fig.appendChild(el('<figcaption>'+esc(p.caption)+'</figcaption>')); cvn.appendChild(fig); });
+        pg.appendChild(cvn); host.appendChild(pg);
+      }
+      if(!list.length) host.appendChild(el('<p style="color:#cdd;text-align:center">Nog geen foto\'s in het boek.</p>'));
+    }
+    document.body.appendChild(ov);
   }
 
   function close(){ try{ if(chan) lc().removeChannel(chan); }catch(e){} chan=null; const r=document.getElementById('pbRoot'); if(r) r.remove(); document.body.style.overflow=''; }
