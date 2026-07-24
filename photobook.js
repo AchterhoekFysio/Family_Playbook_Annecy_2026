@@ -298,7 +298,7 @@
 
   function start(){
     if(!document.getElementById('pbCss')){ const st=document.createElement('style'); st.id='pbCss'; st.textContent=css; document.head.appendChild(st); }
-    tab='album'; openPhotoId=null; render();
+    tab='album'; openPhotoId=null; photos=[]; cfg=defaultCfg(); render();
     if(joined()){ loadAll(); subscribe(); }
   }
 
