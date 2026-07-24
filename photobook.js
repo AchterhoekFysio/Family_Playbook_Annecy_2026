@@ -122,6 +122,7 @@
     ids.forEach(id=>{ if(!cfg.order.includes(id)) cfg.order.push(id); });
     cfg.hidden=(cfg.hidden||[]).filter(id=>ids.includes(id));
     if(cfg.cover && !ids.includes(cfg.cover)) cfg.cover=null;
+    undoStack=[];
     render();
   }
   function ordered(){ const m={}; photos.forEach(p=>m[p.id]=p); return cfg.order.map(id=>m[id]).filter(Boolean); }
@@ -357,7 +358,7 @@
   }
 
   /* ---------- VRIJE OPMAAK (visuele editor) ---------- */
-  let desPage=0, desSel=null;
+  let desPage=0, desSel=null, undoStack=[];
   function ensureFonts(){ if(document.getElementById('pbFonts'))return; const l=document.createElement('link'); l.id='pbFonts'; l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@600&family=Pacifico&family=Caveat:wght@700&family=Bebas+Neue&display=swap'; document.head.appendChild(l); }
   const FONTS=[['system-ui','Standaard'],["'Playfair Display',serif",'Elegant'],["'Dancing Script',cursive",'Handschrift'],["'Pacifico',cursive",'Speels'],["'Caveat',cursive",'Marker'],["'Bebas Neue',sans-serif",'Titel']];
   const BGS=[
@@ -387,7 +388,7 @@
     const card=el('<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:80vh;overflow:auto;padding:16px"></div>');
     card.appendChild(el('<p style="font-weight:800;margin:0 0 8px">Kies een achtergrondfoto voor deze pagina</p>'));
     const g=el('<div class="pbGrid"></div>');
-    ordered().forEach(p=>{ const c=el('<div class="pbCell"><img loading="lazy" decoding="async" src="'+esc(thumb(p.url,300))+'"></div>'); c.onclick=()=>{ page.bgPhoto=p.id; scheduleSave(); ov.remove(); render(); }; g.appendChild(c); });
+    ordered().forEach(p=>{ const c=el('<div class="pbCell"><img loading="lazy" decoding="async" src="'+esc(thumb(p.url,300))+'"></div>'); c.onclick=()=>{ pushUndo(); page.bgPhoto=p.id; scheduleSave(); ov.remove(); render(); }; g.appendChild(c); });
     card.appendChild(g);
     const cl=el('<button class="pbBtn ghost" style="margin-top:10px">Annuleren</button>'); cl.onclick=()=>ov.remove(); card.appendChild(cl);
     ov.appendChild(card); ov.onclick=e=>{ if(e.target===ov) ov.remove(); }; document.body.appendChild(ov);
@@ -401,28 +402,51 @@
     {k:'overlap',name:'Over elkaar + tekst',build:function(ph){ const it=[]; if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:8,y:9,w:56,h:62,shape:'round',z:1}); if(ph[1]) it.push({t:'photo',id:uid(),photo:ph[1].id,x:46,y:36,w:48,h:55,shape:'round',z:2}); it.push({t:'text',id:uid(),text:'Mooiste dag!',x:8,y:78,w:66,h:13,font:"'Dancing Script',cursive",size:8,color:'#e75a7c',align:'left',z:3}); return it; }}
   ];
   function applyTemplate(t,page){
-    page.items=t.build(inBook()); desSel=null; scheduleSave(); render(); toast('Sjabloon toegepast');
+    pushUndo(); page.items=t.build(inBook()); desSel=null; scheduleSave(); render(); toast('Sjabloon toegepast');
   }
+  function snapshot(){ return {pages:JSON.stringify(cfg.pages||[]), desPage:desPage}; }
+  function pushUndo(snap){ if(!snap) snap=snapshot(); undoStack.push(snap); if(undoStack.length>40) undoStack.shift(); }
+  function undo(){ if(!undoStack.length){ toast('Niets om ongedaan te maken'); return; } const s=undoStack.pop(); try{ cfg.pages=JSON.parse(s.pages); }catch(e){ return; } desPage=Math.max(0,Math.min(s.desPage||0,cfg.pages.length-1)); desSel=null; scheduleSave(); render(); toast('Ongedaan gemaakt ↩️'); }
+  function usedPhotoIds(){ const set=new Set(); (cfg.pages||[]).forEach(pg=>{ if(pg.bgPhoto) set.add(pg.bgPhoto); (pg.items||[]).forEach(it=>{ if(it.t==='photo'&&it.photo) set.add(it.photo); }); }); return set; }
+  function autoFill(){
+    const list=inBook(); if(!list.length){ toast('Geen foto\'s in het boek'); return; }
+    pushUndo();
+    const pages=[]; const coverT=TEMPLATES.find(t=>t.k==='cover'); let idx=0;
+    pages.push({bg:'lake',bgPhoto:null,items:coverT.build([list[idx]])}); if(list[idx]) idx++;
+    const cyc=['collage3','two','grid4','overlap','big1']; const bgc=['paper','alps','lavender','forclaz','sunset','tricolore']; let ci=0,bi=0;
+    while(idx<list.length){ const tk=cyc[ci%cyc.length]; const t=TEMPLATES.find(x=>x.k===tk); const need=tk==='grid4'?4:(tk==='collage3'?3:((tk==='two'||tk==='overlap')?2:1)); const slice=list.slice(idx,idx+need); idx+=need; pages.push({bg:bgc[bi%bgc.length],bgPhoto:null,items:t.build(slice)}); ci++; bi++; }
+    cfg.pages=pages; desPage=0; desSel=null; scheduleSave(); render(); const r=document.getElementById('pbRoot'); if(r)r.scrollTop=0; toast('Boek ingevuld: '+pages.length+' pagina\'s');
+  }
+  function dupPage(){ ensurePages(); pushUndo(); const copy=JSON.parse(JSON.stringify(cfg.pages[desPage])); (copy.items||[]).forEach(it=>it.id=uid()); cfg.pages.splice(desPage+1,0,copy); desPage++; desSel=null; scheduleSave(); render(); toast('Pagina gedupliceerd'); }
+  function movePage(dir){ ensurePages(); const j=desPage+dir; if(j<0||j>=cfg.pages.length){ toast('Kan niet verder'); return; } pushUndo(); const t=cfg.pages[desPage]; cfg.pages[desPage]=cfg.pages[j]; cfg.pages[j]=t; desPage=j; scheduleSave(); render(); toast('Pagina verplaatst'); }
 
   function renderDesign(wrap){
     ensureFonts(); ensurePages();
     const page=cfg.pages[desPage]; const s=sizeObj(), ar=s.w/s.h;
+    const top=el('<div class="dsBar"></div>');
+    const undoB=el('<button class="pbMini">↩️ Ongedaan</button>'); if(!undoStack.length){ undoB.style.opacity='.5'; } undoB.onclick=undo; top.appendChild(undoB);
+    const autoB=el('<button class="pbMini" style="background:#0f91a3;color:#fff">⚡ Vul boek automatisch</button>'); autoB.onclick=autoFill; top.appendChild(autoB);
+    wrap.appendChild(top);
     const nav=el('<div class="dsBar"></div>');
     const prev=el('<button class="pbMini">‹</button>'); prev.onclick=()=>{ if(desPage>0){ desPage--; desSel=null; render(); } };
     const lbl=el('<span style="font-weight:800">Pagina '+(desPage+1)+' / '+cfg.pages.length+'</span>');
     const next=el('<button class="pbMini">›</button>'); next.onclick=()=>{ if(desPage<cfg.pages.length-1){ desPage++; desSel=null; render(); } };
-    const addp=el('<button class="pbMini">+ pagina</button>'); addp.onclick=()=>{ cfg.pages.push({bg:page.bg,items:[]}); desPage=cfg.pages.length-1; desSel=null; scheduleSave(); render(); };
-    const delp=el('<button class="pbMini danger">🗑 pagina</button>'); delp.onclick=()=>{ if(cfg.pages.length<=1){ toast('Minstens 1 pagina'); return; } if(!confirm('Deze pagina verwijderen?')) return; cfg.pages.splice(desPage,1); desPage=Math.max(0,desPage-1); desSel=null; scheduleSave(); render(); };
-    nav.append(prev,lbl,next,addp,delp); wrap.appendChild(nav);
+    nav.append(prev,lbl,next); wrap.appendChild(nav);
+    const pact=el('<div class="dsBar"></div>');
+    const dupB=el('<button class="pbMini">⧉ Dupliceer</button>'); dupB.onclick=dupPage; pact.appendChild(dupB);
+    const mlB=el('<button class="pbMini">◀ verplaats</button>'); mlB.onclick=()=>movePage(-1); pact.appendChild(mlB);
+    const mrB=el('<button class="pbMini">verplaats ▶</button>'); mrB.onclick=()=>movePage(1); pact.appendChild(mrB);
+    const delp=el('<button class="pbMini danger">🗑 pagina</button>'); delp.onclick=()=>{ if(cfg.pages.length<=1){ toast('Minstens 1 pagina'); return; } pushUndo(); cfg.pages.splice(desPage,1); desPage=Math.max(0,desPage-1); desSel=null; scheduleSave(); render(); toast('Pagina verwijderd (↩️ ongedaan mogelijk)'); }; pact.appendChild(delp);
+    wrap.appendChild(pact);
 
     wrap.appendChild(el('<p class="pbNote" style="margin:6px 0 2px">Achtergrond (Annecy / Frankrijk of eigen foto):</p>'));
     const bgrow=el('<div class="dsBar"></div>');
-    BGS.forEach(b=>{ const sw=el('<div class="dsSwatch '+(!page.bgPhoto && page.bg===b[0]?'on':'')+'" title="'+b[1]+'"></div>'); sw.style.background=b[2]; sw.onclick=()=>{ page.bg=b[0]; page.bgPhoto=null; scheduleSave(); render(); }; bgrow.appendChild(sw); });
+    BGS.forEach(b=>{ const sw=el('<div class="dsSwatch '+(!page.bgPhoto && page.bg===b[0]?'on':'')+'" title="'+b[1]+'"></div>'); sw.style.background=b[2]; sw.onclick=()=>{ pushUndo(); page.bg=b[0]; page.bgPhoto=null; scheduleSave(); render(); }; bgrow.appendChild(sw); });
     wrap.appendChild(bgrow);
     const bgbtns=el('<div class="dsBar"></div>');
     const bph=el('<button class="pbMini">📷 Eigen foto als achtergrond</button>'); bph.onclick=()=>pickBgPhoto(page); bgbtns.appendChild(bph);
-    if(page.bgPhoto){ const rem=el('<button class="pbMini danger">✕ Fotoachtergrond weg</button>'); rem.onclick=()=>{ page.bgPhoto=null; scheduleSave(); render(); }; bgbtns.appendChild(rem); }
-    const allb=el('<button class="pbMini">🔁 Op alle pagina\'s</button>'); allb.onclick=()=>{ if(!confirm('Deze achtergrond op ALLE pagina\'s toepassen?')) return; cfg.pages.forEach(pp=>{ pp.bg=page.bg; pp.bgPhoto=page.bgPhoto||null; }); scheduleSave(); render(); toast('Toegepast op alle pagina\'s'); }; bgbtns.appendChild(allb);
+    if(page.bgPhoto){ const rem=el('<button class="pbMini danger">✕ Fotoachtergrond weg</button>'); rem.onclick=()=>{ pushUndo(); page.bgPhoto=null; scheduleSave(); render(); }; bgbtns.appendChild(rem); }
+    const allb=el('<button class="pbMini">🔁 Op alle pagina\'s</button>'); allb.onclick=()=>{ pushUndo(); cfg.pages.forEach(pp=>{ pp.bg=page.bg; pp.bgPhoto=page.bgPhoto||null; }); scheduleSave(); render(); toast('Toegepast op alle pagina\'s'); }; bgbtns.appendChild(allb);
     wrap.appendChild(bgbtns);
 
     wrap.appendChild(el('<p class="pbNote" style="margin:8px 0 2px">Sjablonen (vult de pagina automatisch met je foto\'s):</p>'));
@@ -431,7 +455,7 @@
     wrap.appendChild(tplrow);
 
     const addbar=el('<div class="dsBar"></div>');
-    const at=el('<button class="pbMini">➕ Tekstvak</button>'); at.onclick=()=>{ page.items.push({t:'text',id:uid(),text:'Typ hier…',x:12,y:12,w:62,h:16,font:"'Playfair Display',serif",size:6,color:'#0d3550',align:'left',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); };
+    const at=el('<button class="pbMini">➕ Tekstvak</button>'); at.onclick=()=>{ pushUndo(); page.items.push({t:'text',id:uid(),text:'Typ hier…',x:12,y:12,w:62,h:16,font:"'Playfair Display',serif",size:6,color:'#0d3550',align:'left',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); };
     addbar.appendChild(at); addbar.appendChild(el('<span class="pbNote" style="margin:0">Sleep de foto (of ⠿ bij tekst) · hoekje óf 2 vingers (pinch) = vergroten · 🗑 of Delete-toets = verwijderen · tik in tekst om te typen</span>')); wrap.appendChild(addbar);
 
     const cw=el('<div class="dsCanvasWrap"></div>');
@@ -439,20 +463,23 @@
     applyBgDom(canvas,page);
     (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>canvas.appendChild(renderItem(it,page)));
     cw.appendChild(canvas); wrap.appendChild(cw);
-    const newpg=el('<button class="pbBtn ghost" style="margin-top:8px">➕ Nieuwe pagina toevoegen</button>'); newpg.onclick=()=>{ cfg.pages.push({bg:page.bg,bgPhoto:page.bgPhoto||null,items:[]}); desPage=cfg.pages.length-1; desSel=null; scheduleSave(); render(); }; wrap.appendChild(newpg);
+    const newpg=el('<button class="pbBtn ghost" style="margin-top:8px">➕ Nieuwe pagina toevoegen</button>'); newpg.onclick=()=>{ pushUndo(); cfg.pages.push({bg:page.bg,bgPhoto:page.bgPhoto||null,items:[]}); desPage=cfg.pages.length-1; desSel=null; scheduleSave(); render(); const r=document.getElementById('pbRoot'); if(r)r.scrollTop=0; toast('Pagina toegevoegd — nu '+cfg.pages.length+' pagina\'s'); }; wrap.appendChild(newpg);
 
     if(desSel){ const it=(page.items||[]).find(x=>x.id===desSel); if(it) wrap.appendChild(itemToolbar(it,page)); }
 
-    wrap.appendChild(el('<p class="pbNote" style="margin:10px 0 2px">Tik een foto om \'m op de pagina te zetten:</p>'));
-    const strip=el('<div class="dsStrip"></div>');
-    if(!photos.length) strip.appendChild(el('<span class="pbNote">Nog geen foto\'s — voeg ze toe in het Album.</span>'));
-    ordered().forEach(p=>{ const im=el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,170))+'">'); im.onclick=()=>{ page.items.push({t:'photo',id:uid(),photo:p.id,x:15,y:20,w:55,h:42,shape:'round',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; strip.appendChild(im); });
-    wrap.appendChild(strip);
 
     const vw2=el('<button class="pbBtn alt" style="margin-top:14px">👁 Bekijk als digitaal boek (inkijkexemplaar)</button>'); vw2.onclick=openViewer; wrap.appendChild(vw2);
     const dl=el('<button class="pbBtn primary" style="margin-top:8px">⬇️ Ontwerp als print-PDF (voor Albelli)</button>'); dl.onclick=()=>exportDesignPDF(dl); wrap.appendChild(dl);
     wrap.appendChild(el('<p class="pbNote">Je vrije ontwerp wordt op de gekozen paginamaat geëxporteerd. Houd belangrijke dingen iets van de rand i.v.m. Albelli\'s afsnijding.</p>'));
     wrap.appendChild(canvaHint());
+    wrap.appendChild(el('<div style="height:122px"></div>'));
+    const used=usedPhotoIds();
+    const tray=el('<div style="position:fixed;left:0;right:0;bottom:0;z-index:40;background:#fff;border-top:1px solid #e2ecea;box-shadow:0 -6px 16px rgba(13,53,80,.12);padding:7px 10px 9px"></div>');
+    tray.appendChild(el('<div style="font-size:11.5px;font-weight:800;color:#0d3550;margin-bottom:4px">Tik een foto om op deze pagina te zetten'+(used.size?' · ✓ = al ergens gebruikt':'')+'</div>'));
+    const strip=el('<div class="dsStrip"></div>');
+    if(!photos.length) strip.appendChild(el('<span class="pbNote" style="margin:0">Nog geen foto\'s — voeg ze toe in het Album.</span>'));
+    ordered().forEach(p=>{ const w2=el('<div style="position:relative;flex:0 0 auto"></div>'); const im=el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,170))+'" style="height:60px;width:60px;object-fit:cover;border-radius:8px'+(used.has(p.id)?';opacity:.4':'')+'">'); im.onclick=()=>{ pushUndo(); page.items.push({t:'photo',id:uid(),photo:p.id,x:15,y:20,w:55,h:42,shape:'round',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; w2.appendChild(im); if(used.has(p.id)) w2.appendChild(el('<span style="position:absolute;top:2px;right:2px;background:#37b26b;color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center">✓</span>')); strip.appendChild(w2); });
+    tray.appendChild(strip); wrap.appendChild(tray);
   }
 
   function renderItem(it,page){
@@ -471,7 +498,7 @@
     if(desSel===it.id){ const del=el('<div class="dsDel">🗑</div>'); del.addEventListener('pointerdown',e=>e.stopPropagation()); del.onclick=e=>{ e.stopPropagation(); deleteItem(it,page); }; node.appendChild(del); }
     return node;
   }
-  function deleteItem(it,page){ page.items=(page.items||[]).filter(x=>x.id!==it.id); desSel=null; scheduleSave(); render(); }
+  function deleteItem(it,page){ pushUndo(); page.items=(page.items||[]).filter(x=>x.id!==it.id); desSel=null; scheduleSave(); render(); }
   function attachGesture(listenEl,node,it,opts){
     opts=opts||{}; const pts=new Map(); let mode=null,s=null;
     const rect=()=>node.parentElement.getBoundingClientRect();
@@ -481,19 +508,19 @@
       if(pts.size===1){
         if(opts.drag===false) return;
         desSel=it.id; document.querySelectorAll('.dsItem').forEach(n=>n.classList.remove('sel')); node.classList.add('sel');
-        const r=rect(); s={ox:it.x,oy:it.y,sx:e.clientX,sy:e.clientY,W:r.width,H:r.height,moved:false}; mode='drag';
+        const r=rect(); s={ox:it.x,oy:it.y,sx:e.clientX,sy:e.clientY,W:r.width,H:r.height,changed:false,before:snapshot()}; mode='drag';
         try{ listenEl.setPointerCapture(e.pointerId); }catch(_){}
       } else if(pts.size===2 && opts.pinch!==false){
         desSel=it.id; const a=[...pts.values()]; const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y); const r=rect();
-        s={ow:it.w,oh:it.h,d0:d||1}; mode='pinch';
+        s={ow:it.w,oh:it.h,d0:d||1,changed:false,before:snapshot()}; mode='pinch';
       }
     });
     listenEl.addEventListener('pointermove',function(e){
       if(!pts.has(e.pointerId)) return; pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-      if(mode==='drag'&&pts.size===1&&s){ if(Math.abs(e.clientX-s.sx)+Math.abs(e.clientY-s.sy)>4)s.moved=true; it.x=Math.max(-15,Math.min(96,s.ox+(e.clientX-s.sx)/s.W*100)); it.y=Math.max(-15,Math.min(96,s.oy+(e.clientY-s.sy)/s.H*100)); node.style.left=it.x+'%'; node.style.top=it.y+'%'; }
-      else if(mode==='pinch'&&pts.size>=2&&s){ const a=[...pts.values()]; const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y); const sc=d/s.d0; it.w=Math.max(8,Math.min(150,s.ow*sc)); it.h=Math.max(6,Math.min(150,s.oh*sc)); node.style.width=it.w+'%'; node.style.height=it.h+'%'; }
+      if(mode==='drag'&&pts.size===1&&s){ if(Math.abs(e.clientX-s.sx)+Math.abs(e.clientY-s.sy)>4)s.changed=true; it.x=Math.max(-15,Math.min(96,s.ox+(e.clientX-s.sx)/s.W*100)); it.y=Math.max(-15,Math.min(96,s.oy+(e.clientY-s.sy)/s.H*100)); node.style.left=it.x+'%'; node.style.top=it.y+'%'; }
+      else if(mode==='pinch'&&pts.size>=2&&s){ s.changed=true; const a=[...pts.values()]; const d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y); const sc=d/s.d0; it.w=Math.max(8,Math.min(150,s.ow*sc)); it.h=Math.max(6,Math.min(150,s.oh*sc)); node.style.width=it.w+'%'; node.style.height=it.h+'%'; }
     });
-    function endp(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode){ scheduleSave(); render(); } mode=null; s=null; } else if(mode==='pinch'&&pts.size<2){ scheduleSave(); render(); mode=null; s=null; } }
+    function endp(e){ pts.delete(e.pointerId); if(pts.size===0){ if(mode){ if(s&&s.changed){ pushUndo(s.before); scheduleSave(); } render(); } mode=null; s=null; } else if(mode==='pinch'&&pts.size<2){ if(s&&s.changed){ pushUndo(s.before); scheduleSave(); } render(); mode=null; s=null; } }
     listenEl.addEventListener('pointerup',endp); listenEl.addEventListener('pointercancel',endp);
   }
   function resizeItem(handle,node,it){
@@ -609,7 +636,7 @@
     if(!window.__pbKeyBound){ window.__pbKeyBound=true; document.addEventListener('keydown',function(e){
       if(!document.getElementById('pbRoot')||tab!=='design'||!desSel) return;
       const ae=document.activeElement; if(ae && (ae.isContentEditable||ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')) return;
-      if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); ensurePages(); const pg=cfg.pages[desPage]; if(pg){ pg.items=(pg.items||[]).filter(x=>x.id!==desSel); desSel=null; scheduleSave(); render(); } }
+      if(e.key==='Delete'||e.key==='Backspace'){ e.preventDefault(); ensurePages(); const pg=cfg.pages[desPage]; if(pg){ pushUndo(); pg.items=(pg.items||[]).filter(x=>x.id!==desSel); desSel=null; scheduleSave(); render(); } }
     }); }
     tab='album'; openPhotoId=null; photos=[]; cfg=defaultCfg(); render();
     if(joined()){ loadAll(); subscribe(); }
