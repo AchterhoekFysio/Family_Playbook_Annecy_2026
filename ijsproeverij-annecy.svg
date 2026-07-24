@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a7537e"/><stop offset="1" stop-color="#e8a8c4"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#g)"/>
+<circle cx="1110" cy="115" r="145" fill="#fff" opacity=".10"/>
+<circle cx="1035" cy="80" r="52" fill="#fff" opacity=".18"/>
+<path d="M0 600 L0 510 L125 510 L125 425 L245 425 L245 485 L355 485 L355 380 L475 380 L475 520 L600 520 L600 440 L730 440 L730 500 L860 500 L860 405 L990 405 L990 475 L1110 475 L1110 430 L1280 430 V720 H0Z" fill="#fff" opacity=".17"/>
+<text x="74" y="105" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="31" font-weight="700" opacity=".9">IJS &AMP; ZOET</text>
+<text x="74" y="265" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="104">🍦</text>
+<text x="74" y="385" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800">IJsproeverij Annecy</text>
+<text x="74" y="448" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="27" opacity=".88">Annecy Family PlayBook · passend activiteitsbeeld</text>
+<rect x="74" y="540" rx="28" ry="28" width="340" height="58" fill="#fff" opacity=".18"/>
+<text x="102" y="578" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="700">Geen willekeurige stockfoto</text>
+</svg>

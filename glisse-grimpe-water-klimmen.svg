@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#006f83"/><stop offset="1" stop-color="#43bfd0"/></linearGradient></defs>
+<rect width="1280" height="720" fill="url(#g)"/>
+<circle cx="1110" cy="115" r="145" fill="#fff" opacity=".10"/>
+<circle cx="1035" cy="80" r="52" fill="#fff" opacity=".18"/>
+<path d="M0 470 C170 420 310 520 480 470 S790 420 960 480 S1200 520 1280 465 V720 H0Z" fill="#ffffff" opacity=".18"/><path d="M0 520 C180 470 310 560 500 515 S850 470 1280 530" fill="none" stroke="#fff" stroke-width="10" opacity=".28"/>
+<text x="74" y="105" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="31" font-weight="700" opacity=".9">PUBERS ACTIEF</text>
+<text x="74" y="265" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="104">🧗‍♂️</text>
+<text x="74" y="385" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="58" font-weight="800">Glisse &amp; Grimpe – water + klim</text>
+<text x="74" y="448" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="27" opacity=".88">Annecy Family PlayBook · passend activiteitsbeeld</text>
+<rect x="74" y="540" rx="28" ry="28" width="340" height="58" fill="#fff" opacity=".18"/>
+<text x="102" y="578" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="25" font-weight="700">Geen willekeurige stockfoto</text>
+</svg>
