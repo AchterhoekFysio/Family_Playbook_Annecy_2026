@@ -128,8 +128,8 @@
 <header class="hero"><div class="heroContent"><div class="eyebrow">Jullie vakantie 2026</div><h1>Annecy<br>Family PlayBook ♡</h1><div class="meta"><span>📅 6–16 augustus</span><span>📍 Camping L’Idéal</span></div><div class="heroChips"><span class="glass" id="weather">🌤️ Laden…</span><span class="glass" id="countdown">⏳ Aftellen…</span></div><div class="heroActions"><button class="primary" onclick="startAdventure()">Start avontuur →</button><button class="planningHeroBtn" onclick="switchScreen('planner')">🗓️ Jullie planning</button></div></div></header>
 <main class="content">
 <section id="home" class="screen active">
-<div class="stats"><div class="stat"><div>📆</div><b id="days">—</b><span>dagen</span></div><div class="stat" onclick="goGame('favs')" style="cursor:pointer"><div>❤️</div><b id="favCount">0</b><span>favorieten ›</span></div><div class="stat"><div>⭐</div><b id="bingoCount">0/25</b><span>bingo</span></div><div class="stat"><div>📋</div><b id="planCount">0</b><span>planning</span></div></div>
-<div class="card" style="display:flex;gap:10px;align-items:stretch"><button class="primary" style="flex:1;flex-direction:column;gap:2px;padding:14px 10px" onclick="openPhotobook()"><span style="font-size:1.5rem">📖</span>Fotoalbum & fotoboek</button><button style="flex:1;flex-direction:column;gap:2px;padding:14px 10px;background:#ffe9e7;color:var(--ink)" onclick="goGame('favs')"><span style="font-size:1.5rem">❤️</span>Wie vindt wat leuk</button></div>
+<div class="stats"><div class="stat"><div>📆</div><b id="days">—</b><span>dagen</span></div><div class="stat" onclick="openFavsPopup()" style="cursor:pointer"><div>❤️</div><b id="favCount">0</b><span>favorieten ›</span></div><div class="stat"><div>⭐</div><b id="bingoCount">0/25</b><span>bingo</span></div><div class="stat"><div>📋</div><b id="planCount">0</b><span>planning</span></div></div>
+<div class="card" style="display:flex;gap:10px;align-items:stretch"><button class="primary" style="flex:1;flex-direction:column;gap:2px;padding:14px 10px" onclick="openPhotobook()"><span style="font-size:1.5rem">📖</span>Fotoalbum & fotoboek</button><button style="flex:1;flex-direction:column;gap:2px;padding:14px 10px;background:#ffe9e7;color:var(--ink)" onclick="openFavsPopup()"><span style="font-size:1.5rem">❤️</span>Wie vindt wat leuk</button></div>
 <div class="sectionHead"><h2>☀️ Aanbevolen voor vandaag</h2><button class="linkish" onclick="switchScreen('activities')">Bekijk alle ›</button></div><div class="recs" id="recs"></div>
 
 <div class="todayPlan card">
@@ -269,6 +269,23 @@ const catIcons={'Alles':'▦','Stranden':'🏖️','Actief':'⚡','Cultuur':'�
 function switchScreen(id){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));scrollTo(0,0)}
 function goGame(g){switchScreen('games');setTimeout(function(){try{if(window.AnnecyOpenGame)window.AnnecyOpenGame(g);}catch(e){}},50)}
 function openPhotobook(){if(window.AnnecyPhotobook){try{window.AnnecyPhotobook.open('vos');}catch(e){console.error(e);alert('Fotoboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='photobook.js?v=29';s.onload=function(){if(window.AnnecyPhotobook)window.AnnecyPhotobook.open('vos');};document.head.appendChild(s);}
+function openFavsPopup(){
+  function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  var A=window.AnnecyLive;
+  var ov=document.createElement('div');ov.id='favOv';ov.style.cssText='position:fixed;inset:0;z-index:4000;background:rgba(6,26,40,.55);display:flex;align-items:center;justify-content:center;padding:18px';
+  var card=document.createElement('div');card.style.cssText='background:#fff;border-radius:20px;max-width:460px;width:100%;max-height:82vh;overflow:auto;padding:18px;box-shadow:0 24px 60px rgba(0,0,0,.35)';
+  card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px"><h2 style="margin:0;font-size:19px">Wie vindt wat leuk ❤️</h2><button id="favCl" style="border:none;background:#eef4f4;border-radius:10px;padding:6px 11px;font-weight:800;cursor:pointer">✕</button></div><p class="small" style="margin:0 0 10px">De hartjes die iedereen bij Activiteiten aantikt, verschijnen hier per persoon.</p><div id="favBody">Laden…</div>';
+  ov.appendChild(card);ov.onclick=function(e){if(e.target===ov)ov.remove();};document.body.appendChild(ov);
+  document.getElementById('favCl').onclick=function(){ov.remove();};
+  var body=function(){return document.getElementById('favBody');};
+  if(!(A&&A.isJoined&&A.isJoined())){ if(body())body().innerHTML='<p class="small">Log eerst éénmalig in bij <b>Spellen</b> (naam + familiecode) om favorieten te delen en te zien.</p>'; return; }
+  A.loadGroupProgress().then(function(rows){
+    var favs=(rows||[]).filter(function(r){return r.game_key==='favs'&&r.state&&Array.isArray(r.state.items)&&r.state.items.length;});
+    if(!body())return;
+    if(!favs.length){body().innerHTML='<p class="small">Nog niemand heeft favorieten aangetikt. Ga naar Activiteiten en tik op een ❤️.</p>';return;}
+    body().innerHTML=favs.map(function(r){var st=r.state||{};return '<div style="background:#f7fbfb;border-radius:12px;padding:10px 12px;margin-bottom:8px"><b>'+_e(st.name||'speler')+' — '+(st.items||[]).length+' favoriet(en)</b>'+(st.items||[]).map(function(it){return '<div class="small" style="margin-top:3px">❤️ '+_e(it)+'</div>';}).join('')+'</div>';}).join('');
+  }).catch(function(){if(body())body().innerHTML='<p class="small">Kon favorieten niet laden.</p>';});
+}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>switchScreen(b.dataset.screen));
 function startAdventure(){document.querySelector('.stats').scrollIntoView({behavior:'smooth'})}
 function getList(k){return JSON.parse(localStorage.getItem(k)||'[]')} function setList(k,v){localStorage.setItem(k,JSON.stringify(v))}
@@ -544,6 +561,6 @@ document.querySelectorAll("[data-screen]").forEach(btn=>btn.addEventListener("cl
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=24"></script>
 <script src="supabase-live.js?v=26"></script>
-<script src="games-interactive.js?v=24"></script>
+<script src="games-interactive.js?v=30"></script>
 <script src="photobook.js?v=29"></script>
 </body></html>
