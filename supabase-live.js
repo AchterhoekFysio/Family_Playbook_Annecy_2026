@@ -1,7 +1,7 @@
 (() => {
   const cfg = window.ANNECY_SUPABASE || {};
   const configured = cfg.url && cfg.publishableKey && !cfg.url.includes('YOUR-PROJECT') && !cfg.publishableKey.includes('YOUR_KEY');
-  const state = { client:null, user:null, player:null, group:null, channel:null, players:[] };
+  const state = { client:null, user:null, player:null, group:null, channel:null, players:[], isAdmin:false, playingAs:null, playingAsName:null };
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const setMessage = (text, ok=false) => { const e=$('liveMessage'); if(e){e.textContent=text;e.className='liveStatus '+(ok?'liveOk':'liveError');} };
@@ -49,6 +49,7 @@
     if($('liveGroupName')) $('liveGroupName').textContent=state.group.name;
     if($('livePlayerLabel')) $('livePlayerLabel').textContent=`Ingelogd als ${state.player.display_name} · code ${state.group.join_code}`;
     $('offlineScoreControls')?.classList.add('liveHidden');
+    try{ const r=await state.client.rpc('am_i_game_admin'); state.isAdmin=!!(r&&r.data); }catch(e){ state.isAdmin=false; }
     await refreshPlayers(); subscribe(); setConnection('Live verbonden');
   }
   function showJoin(){
@@ -68,8 +69,28 @@
   function renderLiveScores(){
     if(!state.group){ if(typeof window.renderFamilyScores==='function') window.renderFamilyScores(); return; }
     const h=$('familyScores'); if(!h)return;
-    h.innerHTML=state.players.map((p,i)=>`<div class="scoreRow ${p.id===state.player.id?'me':''}"><b>${i+1}. <span style="color:${p.active?'#37b26b':'#c7d2cf'}">●</span> ${esc(p.display_name)}${p.id===state.player.id?' · jij':''}${p.active?'':' <span style="font-weight:400;color:#9aa8a4;font-size:11px">(nog niet ingelogd)</span>'}</b><span>${p.score}</span><button onclick="scorePlayer('${p.id}',-1)">−</button><button onclick="scorePlayer('${p.id}',1)">+</button><input class="qsIn" type="number" inputmode="numeric" placeholder="±" data-pid="${p.id}" style="width:50px;margin-left:6px"><button onclick="quickScore(this)">OK</button></div>`).join('')||'<p class="small">Nog geen spelers.</p>';
-    h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px" onclick="addManualPlayer()">+ Speler toevoegen (zonder telefoon)</button>');
+    const admin=!!state.isAdmin;
+    const chip='padding:6px 11px;border-radius:999px;border:1px solid #d5e0dd;font-size:13px;cursor:pointer;font-weight:700';
+    const guests=state.players.filter(p=>!p.active);
+    let bar='';
+    if(guests.length){
+      bar='<div style="background:#eef4f4;border-radius:12px;padding:10px;margin-bottom:12px">'
+        +'<div style="font-weight:800;font-size:13px;color:#0d3550;margin-bottom:6px">📱 Wie speelt er nu op deze telefoon?</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
+        +'<button onclick="AnnecySetPlayAs(\'\')" style="'+chip+';'+(!state.playingAs?'background:#0f91a3;color:#fff':'background:#fff;color:#0d3550')+'">🙋 '+esc(state.player.display_name)+' (jij)</button>'
+        +guests.map(g=>'<button onclick="AnnecySetPlayAs(\''+g.id+'\')" style="'+chip+';'+(state.playingAs===g.id?'background:#ff6f68;color:#fff':'background:#fff;color:#0d3550')+'">'+esc(g.display_name)+'</button>').join('')
+        +'</div>'
+        +(state.playingAs?'<div style="margin-top:7px;font-size:12.5px;color:#e0554d;font-weight:800">▶ Je speelt nu als '+esc(state.playingAsName)+'. Elk spel dat je nu speelt telt voor '+esc(state.playingAsName)+'. Tik je eigen naam om terug te wisselen.</div>':'')
+        +'</div>';
+    }
+    const rows=state.players.map((p,i)=>{
+      const ctrl = admin ? `<button onclick="scorePlayer('${p.id}',-1)">−</button><button onclick="scorePlayer('${p.id}',1)">+</button><input class="qsIn" type="number" inputmode="numeric" placeholder="±" data-pid="${p.id}" style="width:50px;margin-left:6px"><button onclick="quickScore(this)">OK</button>` : '';
+      return `<div class="scoreRow ${p.id===state.player.id?'me':''}"><b>${i+1}. <span style="color:${p.active?'#37b26b':'#c7d2cf'}">●</span> <span onclick="AnnecyPlayerGames('${p.id}')" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px">${esc(p.display_name)}</span>${p.id===state.player.id?' · jij':''}${p.active?'':' <span style="font-weight:400;color:#9aa8a4;font-size:11px">(nog niet ingelogd)</span>'}</b><span>${p.score}</span>${ctrl}</div>`;
+    }).join('')||'<p class="small">Nog geen spelers.</p>';
+    h.innerHTML=bar+rows;
+    if(admin) h.insertAdjacentHTML('beforeend','<button class="secondaryBtn" style="margin-top:8px" onclick="addManualPlayer()">+ Speler toevoegen (zonder telefoon)</button>');
+    else h.insertAdjacentHTML('beforeend','<p class="small" style="margin-top:8px;color:#9aa8a4">De beheerder beheert de handmatige scores. Jouw spelpunten tellen automatisch mee.</p>');
+    h.insertAdjacentHTML('beforeend','<p class="small" style="margin-top:6px;color:#9aa8a4">Tip: tik op een naam om te zien welke spellen die persoon heeft gespeeld.</p>');
   }
   window.changeLiveScore = async function(delta,reason='spel'){
     if(!state.player){setMessage('Doe eerst mee met de familiegroep.');return false;}
@@ -81,6 +102,21 @@
   window.scorePlayer=async function(pid,delta){ if(!state.client)return; const {error}=await state.client.rpc('award_points',{p_player_id:pid,p_points:delta,p_reason:'handmatig'}); if(error){console.error(error);setConnection('Score niet opgeslagen');} else await refreshPlayers(); };
   window.quickScore=async function(btn){ const inp=btn&&btn.previousElementSibling; if(!inp)return; const n=parseInt(inp.value,10); if(!n){return;} const pid=inp.getAttribute('data-pid'); inp.value=''; if(!pid||!state.client)return; const {error}=await state.client.rpc('award_points',{p_player_id:pid,p_points:Math.max(-100,Math.min(100,n)),p_reason:'handmatig'}); if(error){console.error(error);} else await refreshPlayers(); };
   window.addManualPlayer=async function(){ const name=prompt('Naam van de speler (bijv. een kind zonder telefoon):'); if(!name||!name.trim())return; const {error}=await state.client.rpc('add_manual_player',{p_name:name.trim()}); if(error){alert(error.message||'Toevoegen lukte niet');return;} await refreshPlayers(); };
+  window.AnnecySetPlayAs=function(id){ if(!id){ state.playingAs=null; state.playingAsName=null; renderLiveScores(); return; } const p=state.players.find(x=>x.id===id); if(!p)return; state.playingAs=id; state.playingAsName=p.display_name; renderLiveScores(); };
+  window.AnnecyPlayerGames=async function(pid){
+    const p=state.players.find(x=>x.id===pid); if(!p||!state.client||!state.group)return;
+    let rows=[]; try{ const {data}=await state.client.from('game_progress').select('game_key,state').eq('group_id',state.group.id).eq('player_id',pid); rows=data||[]; }catch(e){}
+    const LABELS={quiz:'🧠 Familiequiz',bingo:'🗺️ Vakantiebingo',yahtzee:'🎲 Yahtzee',music:'🎵 Hitster',speurtocht:'🔍 Speurtocht',top10:'⭐ Mijn top 10',favs:'❤️ Favorieten',vrijetijd:'🛋️ Vrije tijd'};
+    const scored=rows.filter(r=>r.state && r.state.best!=null && Number(r.state.best)>0);
+    const inner = scored.length ? scored.map(r=>'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef2f1"><span>'+(LABELS[r.game_key]||r.game_key)+'</span><b>'+Number(r.state.best)+'</b></div>').join('') : '<p class="small">Nog geen spellen met een score gespeeld.</p>';
+    let ov=document.getElementById('pgOverlay'); if(ov) ov.remove();
+    ov=document.createElement('div'); ov.id='pgOverlay';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(6,26,40,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px';
+    ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:420px;width:100%;padding:18px;box-shadow:0 20px 50px rgba(0,0,0,.35)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px"><h3 style="margin:0;color:#0d3550;font-size:18px">'+esc(p.display_name)+' — gespeelde spellen</h3><button id="pgClose" style="border:none;background:#eef4f4;border-radius:10px;padding:6px 11px;cursor:pointer;font-weight:800">✕</button></div><p class="small" style="margin:0 0 8px;color:#697983">Beste ruwe score per spel. Familiepunten komen uit de ranking (1e=10, 2e=8, 3e=5, rest=1).</p>'+inner+'<div style="margin-top:12px;text-align:right;font-weight:800;color:#0f91a3">Familiescore: '+p.score+'</div></div>';
+    ov.onclick=function(e){ if(e.target===ov) ov.remove(); };
+    document.body.appendChild(ov);
+    var cb=document.getElementById('pgClose'); if(cb) cb.onclick=function(){ ov.remove(); };
+  };
   const originalToggleBingo=window.toggleBingo;
   window.toggleBingo=async function(i){
     const before=getList('bingo').includes(i); originalToggleBingo(i);
@@ -126,9 +162,15 @@
     },
     async recordResult(gameKey, points, stateObj){
       if(!state.client || !state.player) return null;
+      if(state.playingAs){
+        const r=await state.client.rpc('record_result_for',{ p_player_id:state.playingAs, p_game_key:gameKey, p_points:Math.round(points||0), p_state:Object.assign({}, stateObj||{}, {name:state.playingAsName}) });
+        if(r.error){ console.error('record_result_for',r.error); return null; }
+        try{ refreshPlayers(); }catch(e){}
+        return r.data;
+      }
       const { data, error }=await state.client.rpc('record_game_result',{ p_game_key:gameKey, p_points:Math.round(points||0), p_state:Object.assign({}, stateObj||{}, {name:state.player.display_name}) });
       if(error){ console.error('recordResult',error); return null; }
-      if(typeof state.__refreshPlayers==='function'){ try{ state.__refreshPlayers(); }catch(e){} }
+      try{ refreshPlayers(); }catch(e){}
       return data;
     },
     async loadGroupProgress(){
