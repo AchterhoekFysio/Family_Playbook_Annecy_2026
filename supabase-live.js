@@ -144,6 +144,7 @@
   // Publieke API voor de spellenmodule: gedeelde voortgang binnen de groep.
   window.AnnecyLive = {
     isJoined(){ return !!state.player; },
+    get isAdmin(){ return !!state.isAdmin; },
     get player(){ return state.player; },
     get group(){ return state.group; },
     get client(){ return state.client; },

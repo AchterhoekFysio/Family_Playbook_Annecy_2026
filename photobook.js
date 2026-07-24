@@ -154,9 +154,9 @@
   }
 
   function renderAlbum(wrap){
-    const up=el('<label class="pbUpload">➕ Foto\'s toevoegen aan '+esc(albName())+'<input type="file" accept="image/*" capture="environment" multiple style="display:none"></label>');
+    const up=el('<label class="pbUpload">➕ Foto\'s toevoegen aan '+esc(albName())+'<span style="display:block;font-weight:600;color:#697983;font-size:12px;margin-top:3px">Je kunt meerdere foto\'s tegelijk kiezen</span><input type="file" accept="image/*" multiple style="display:none"></label>');
     const inp=up.querySelector('input');
-    inp.onchange=async()=>{ const files=Array.from(inp.files||[]); if(!files.length)return; up.textContent='Bezig met uploaden…'; await uploadFiles(files); await softReload(); toast('Foto\'s toegevoegd 🎉'); render(); };
+    inp.onchange=async()=>{ const files=Array.from(inp.files||[]); if(!files.length)return; up.innerHTML='Bezig met uploaden… ('+files.length+')'; await uploadFiles(files); inp.value=''; await softReload(); toast(files.length+' foto\'s toegevoegd 🎉'); render(); };
     wrap.appendChild(up);
     if(!photos.length){ wrap.appendChild(el('<p class="pbNote">Nog geen foto\'s. Tik hierboven om foto\'s vanaf je telefoon toe te voegen. Iedereen in de familie ziet ze live.</p>')); return; }
     wrap.appendChild(el('<p class="pbNote">Tik op een foto om bijschrift, cover, volgorde of verwijderen te regelen. 🚫 = niet in het boek.</p>'));
@@ -169,6 +169,7 @@
       if(openPhotoId===p.id) grid.appendChild(photoEditor(p));
     });
     wrap.appendChild(grid);
+    if(A()&&A().isAdmin && photos.length){ const cl=el('<button class="pbBtn ghost" style="margin-top:16px;color:#c0392b">🗑 Album leegmaken (alle foto\'s wissen)</button>'); cl.onclick=clearAlbum; wrap.appendChild(cl); }
   }
 
   function photoEditor(p){
@@ -194,6 +195,16 @@
     try{ await c.from('photos').delete().eq('id',p.id); }catch(e){ toast('Verwijderen lukte niet'); return; }
     photos=photos.filter(x=>x.id!==p.id); cfg.order=cfg.order.filter(i=>i!==p.id); cfg.hidden=cfg.hidden.filter(i=>i!==p.id); if(cfg.cover===p.id)cfg.cover=null; openPhotoId=null; scheduleSave(); render(); toast('Verwijderd');
   }
+  async function clearAlbum(){
+    const a=A();
+    if(!(a&&a.isAdmin)){ toast('Alleen de beheerder kan het album leegmaken'); return; }
+    if(!confirm('ALLE foto\'s van "'+albName()+'" verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+    if(!confirm('Echt zeker weten? Alle foto\'s in dit album worden definitief gewist.')) return;
+    const c=lc(); const paths=photos.map(p=>p.path).filter(Boolean);
+    try{ if(paths.length) await c.storage.from('fotos').remove(paths); }catch(e){}
+    try{ await c.from('photos').delete().eq('group_id',gid()).eq('album',album); }catch(e){ toast('Leegmaken lukte niet'); return; }
+    photos=[]; cfg.order=[]; cfg.hidden=[]; cfg.cover=null; openPhotoId=null; scheduleSave(); render(); toast('Album leeggemaakt');
+  }
 
   function renderBook(wrap){
     const list=inBook();
@@ -214,6 +225,10 @@
 
     const dl=el('<button class="pbBtn primary">⬇️ Print-klare PDF maken (voor Albelli)</button>'); dl.onclick=()=>exportPDF(dl); wrap.appendChild(dl);
     wrap.appendChild(el('<p class="pbNote">De PDF krijgt de gekozen paginamaat + 3&nbsp;mm afloop (bleed) en foto\'s op ~300&nbsp;dpi. Upload \'m bij Albelli via hun <b>PDF-fotoboek / zelf-ontworpen boek</b> optie. Let op: controleer bij Albelli de exacte maat en of ze losse pagina\'s of spreads willen.</p>'));
+
+    const cv=el('<button class="pbBtn ghost" style="background:#e8f7f8;color:#0f91a3">🎨 Ontwerp in Canva (opent fotoboek-templates)</button>'); cv.onclick=()=>window.open('https://www.canva.com/photo-books/templates/','_blank','noopener'); wrap.appendChild(cv);
+    const zbtn=el('<button class="pbBtn ghost">⬇️ Download alle foto\'s (.zip) — om in Canva/Albelli te gebruiken</button>'); zbtn.onclick=()=>downloadAllZip(zbtn); wrap.appendChild(zbtn);
+    wrap.appendChild(el('<p class="pbNote">Liever visueel opmaken in <b>Canva</b> of Albelli\'s eigen editor? Download hier alle foto\'s in één keer en importeer ze daar. In Canva pak je een fotoboek-template, sleep je de foto\'s erin en exporteer je een print-PDF — die upload je bij Albelli. (Een directe automatische koppeling met Canva of Albelli bestaat helaas niet; dit is de snelste brug.)</p>'));
 
     const prev=el('<div class="pbPages" id="pbPrev"></div>'); wrap.appendChild(prev);
     updatePreview();
@@ -244,7 +259,23 @@
   }
 
   /* ---------- PDF EXPORT ---------- */
-  function ensureJsPDF(){ return new Promise((res,rej)=>{ if(window.jspdf&&window.jspdf.jsPDF) return res(); const s=document.createElement('script'); s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload=()=>res(); s.onerror=rej; document.head.appendChild(s); }); }
+  function ensureScript(src,test){ return new Promise((res,rej)=>{ if(test&&test()) return res(); const s=document.createElement('script'); s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error('load '+src)); document.head.appendChild(s); }); }
+  function ensureJsPDF(){ return ensureScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', ()=>window.jspdf&&window.jspdf.jsPDF); }
+  async function downloadAllZip(btn){
+    const list=inBook(); if(!list.length){ toast('Geen foto\'s in het boek'); return; }
+    const old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='Foto\'s inpakken…'; }
+    try{
+      await ensureScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', ()=>window.JSZip);
+      const zip=new window.JSZip(); let n=1;
+      for(const p of list){
+        try{ const r=await fetch(p.url,{mode:'cors'}); const b=await r.blob(); const ext=((p.path||'').split('.').pop()||'jpg').toLowerCase(); const cap=p.caption?('-'+p.caption.replace(/[^a-z0-9]+/gi,'_').slice(0,28)):''; zip.file(String(n).padStart(3,'0')+cap+'.'+ext, b); n++; }catch(e){ console.warn(e); }
+      }
+      const blob=await zip.generateAsync({type:'blob'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Fotos-'+album+'-Annecy2026.zip'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      toast('ZIP gedownload ✓');
+    }catch(e){ console.error(e); alert('Inpakken lukte niet (internet?).'); }
+    finally{ if(btn){ btn.disabled=false; btn.textContent=old; } }
+  }
   function loadImg(url){ return new Promise((res,rej)=>{ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>rej(new Error('img')); im.src=url; }); }
   function coverData(img,wmm,hmm){
     const ar=wmm/hmm, iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height, iar=iw/ih;
