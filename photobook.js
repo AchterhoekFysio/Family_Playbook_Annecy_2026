@@ -80,7 +80,8 @@
   .dsItem>img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
   .dsText{padding:4px 6px;overflow:hidden;line-height:1.15}
   .dsText[contenteditable]{outline:none}
-  .rsz{position:absolute;right:-10px;bottom:-10px;width:20px;height:20px;background:#ff6f68;border:2px solid #fff;border-radius:50%;cursor:nwse-resize;touch-action:none}
+  .rsz{position:absolute;right:-10px;bottom:-10px;width:22px;height:22px;background:#ff6f68;border:2px solid #fff;border-radius:50%;cursor:nwse-resize;touch-action:none;z-index:7}
+  .dsHandle{position:absolute;top:-11px;left:-3px;background:#0d3550;color:#fff;font-size:9px;font-weight:800;padding:2px 7px;border-radius:7px;cursor:move;z-index:6;touch-action:none;white-space:nowrap;user-select:none}
   .dsStrip{display:flex;gap:6px;overflow-x:auto;padding:6px 2px;scrollbar-width:none}
   .dsStrip img{height:62px;width:62px;object-fit:cover;border-radius:8px;cursor:pointer;flex:0 0 auto}
   .dsSwatch{width:32px;height:32px;border-radius:8px;border:2px solid #fff;box-shadow:0 0 0 1px #d5e0dd;cursor:pointer;flex:0 0 auto}
@@ -92,6 +93,17 @@
   function albName(k){ const a=ALBUMS.find(x=>x[0]===(k||album)); return a?a[1]:k; }
   // Verkleinde thumbnail via Supabase image-transform (houdt het album snel bij veel/grote foto's).
   function thumb(url,w){ try{ if(!url||url.indexOf('/storage/v1/object/public/')<0) return url; return url.replace('/storage/v1/object/public/','/storage/v1/render/image/public/')+(url.indexOf('?')>-1?'&':'?')+'width='+(w||400)+'&quality=62'; }catch(e){ return url; } }
+  const CANVA_EMAIL='info@achterhoekfysio.nl';
+  function canvaHint(){
+    const box=el('<div style="background:#e8f7f8;border:1px solid #bfe3e6;border-radius:12px;padding:10px 12px;margin-top:10px"></div>');
+    box.appendChild(el('<div style="font-weight:800;color:#0f91a3;margin-bottom:4px">🎨 Canva (visueel opmaken)</div>'));
+    box.appendChild(el('<div style="font-size:13px;color:#0d3550">Inloggen met: <b>'+CANVA_EMAIL+'</b><br><span style="color:#697983;font-size:12px">Het wachtwoord staat bewust niet in de app — deel dat via een Canva Team-uitnodiging of een wachtwoordmanager.</span></div>'));
+    const row=el('<div class="dsBar" style="margin-top:8px"></div>');
+    const open=el('<button class="pbMini" style="background:#0f91a3;color:#fff">Open Canva</button>'); open.onclick=()=>window.open('https://www.canva.com/login','_blank','noopener'); row.appendChild(open);
+    const cp=el('<button class="pbMini">📋 Kopieer e-mail</button>'); cp.onclick=()=>{ try{ navigator.clipboard.writeText(CANVA_EMAIL); toast('E-mail gekopieerd'); }catch(e){ toast('Kopiëren lukte niet'); } }; row.appendChild(cp);
+    box.appendChild(row);
+    return box;
+  }
   function sizeObj(){ return SIZES.find(s=>s.k===(cfg&&cfg.size||'sq21'))||SIZES[0]; }
 
   const defaultCfg=()=>({title:albName(),subtitle:"Camping l'Idéal · Lac d'Annecy · 6–16 aug 2026",size:'sq21',layout:2,cover:null,order:[],hidden:[]});
@@ -246,6 +258,7 @@
     const cv=el('<button class="pbBtn ghost" style="background:#e8f7f8;color:#0f91a3">🎨 Ontwerp in Canva (opent fotoboek-templates)</button>'); cv.onclick=()=>window.open('https://www.canva.com/photo-books/templates/','_blank','noopener'); wrap.appendChild(cv);
     const zbtn=el('<button class="pbBtn ghost">⬇️ Download alle foto\'s (.zip) — om in Canva/Albelli te gebruiken</button>'); zbtn.onclick=()=>downloadAllZip(zbtn); wrap.appendChild(zbtn);
     wrap.appendChild(el('<p class="pbNote">Liever visueel opmaken in <b>Canva</b> of Albelli\'s eigen editor? Download hier alle foto\'s in één keer en importeer ze daar. In Canva pak je een fotoboek-template, sleep je de foto\'s erin en exporteer je een print-PDF — die upload je bij Albelli. (Een directe automatische koppeling met Canva of Albelli bestaat helaas niet; dit is de snelste brug.)</p>'));
+    wrap.appendChild(canvaHint());
 
     const prev=el('<div class="pbPages" id="pbPrev"></div>'); wrap.appendChild(prev);
     updatePreview();
@@ -359,6 +372,30 @@
   function shapeCss(sh){ return sh==='circle'?'50%':(sh==='pill'?'40px':(sh==='rect'?'0':'12px')); }
   function ensurePages(){ if(!Array.isArray(cfg.pages)) cfg.pages=[]; if(!cfg.pages.length) cfg.pages=[{bg:'paper',items:[]}]; if(desPage>=cfg.pages.length) desPage=cfg.pages.length-1; if(desPage<0) desPage=0; }
   function uid(){ return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  function applyBgDom(elm,page){ if(page.bgPhoto){ const p=photos.find(x=>x.id===page.bgPhoto); if(p){ elm.style.background='#dfe6e4'; elm.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,1200))+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none">')); return; } } elm.style.background=bgCss(page.bg); }
+  function pickBgPhoto(page){
+    if(!photos.length){ toast('Voeg eerst foto\'s toe in het Album'); return; }
+    const ov=el('<div style="position:fixed;inset:0;z-index:5200;background:rgba(6,26,40,.6);display:flex;align-items:center;justify-content:center;padding:16px"></div>');
+    const card=el('<div style="background:#fff;border-radius:16px;max-width:520px;width:100%;max-height:80vh;overflow:auto;padding:16px"></div>');
+    card.appendChild(el('<p style="font-weight:800;margin:0 0 8px">Kies een achtergrondfoto voor deze pagina</p>'));
+    const g=el('<div class="pbGrid"></div>');
+    ordered().forEach(p=>{ const c=el('<div class="pbCell"><img loading="lazy" decoding="async" src="'+esc(thumb(p.url,300))+'"></div>'); c.onclick=()=>{ page.bgPhoto=p.id; scheduleSave(); ov.remove(); render(); }; g.appendChild(c); });
+    card.appendChild(g);
+    const cl=el('<button class="pbBtn ghost" style="margin-top:10px">Annuleren</button>'); cl.onclick=()=>ov.remove(); card.appendChild(cl);
+    ov.appendChild(card); ov.onclick=e=>{ if(e.target===ov) ov.remove(); }; document.body.appendChild(ov);
+  }
+  const TEMPLATES=[
+    {k:'cover',name:'Cover + titel',build:function(ph){ const it=[]; if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:6,y:5,w:88,h:72,shape:'round',z:1}); it.push({t:'text',id:uid(),text:'Onze vakantie',x:8,y:79,w:84,h:14,font:"'Playfair Display',serif",size:9,color:'#0d3550',align:'center',z:2}); return it; }},
+    {k:'big1',name:'1 grote foto',build:function(ph){ const it=[]; if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:8,y:7,w:84,h:74,shape:'round',z:1}); it.push({t:'text',id:uid(),text:'Bijschrift…',x:8,y:84,w:84,h:10,font:"'Caveat',cursive",size:6,color:'#0d3550',align:'center',z:2}); return it; }},
+    {k:'two',name:"2 foto's + titel",build:function(ph){ const it=[]; it.push({t:'text',id:uid(),text:'Titel',x:8,y:4,w:84,h:11,font:"'Bebas Neue',sans-serif",size:8,color:'#0d3550',align:'center',z:3}); if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:6,y:18,w:44,h:60,shape:'round',z:1}); if(ph[1]) it.push({t:'photo',id:uid(),photo:ph[1].id,x:52,y:30,w:42,h:58,shape:'round',z:2}); return it; }},
+    {k:'collage3',name:'Collage 3',build:function(ph){ const it=[]; if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:5,y:6,w:60,h:88,shape:'round',z:1}); if(ph[1]) it.push({t:'photo',id:uid(),photo:ph[1].id,x:66,y:6,w:29,h:42,shape:'round',z:2}); if(ph[2]) it.push({t:'photo',id:uid(),photo:ph[2].id,x:66,y:52,w:29,h:42,shape:'round',z:3}); return it; }},
+    {k:'grid4',name:'4 grid',build:function(ph){ const it=[]; const pos=[[6,6],[51,6],[6,51],[51,51]]; for(let i=0;i<4;i++){ if(ph[i]) it.push({t:'photo',id:uid(),photo:ph[i].id,x:pos[i][0],y:pos[i][1],w:43,h:43,shape:'rect',z:i+1}); } return it; }},
+    {k:'overlap',name:'Over elkaar + tekst',build:function(ph){ const it=[]; if(ph[0]) it.push({t:'photo',id:uid(),photo:ph[0].id,x:8,y:9,w:56,h:62,shape:'round',z:1}); if(ph[1]) it.push({t:'photo',id:uid(),photo:ph[1].id,x:46,y:36,w:48,h:55,shape:'round',z:2}); it.push({t:'text',id:uid(),text:'Mooiste dag!',x:8,y:78,w:66,h:13,font:"'Dancing Script',cursive",size:8,color:'#e75a7c',align:'left',z:3}); return it; }}
+  ];
+  function applyTemplate(t,page){
+    if((page.items||[]).length && !confirm('Dit sjabloon vervangt wat er nu op deze pagina staat. Doorgaan?')) return;
+    page.items=t.build(inBook()); desSel=null; scheduleSave(); render(); toast('Sjabloon toegepast');
+  }
 
   function renderDesign(wrap){
     ensureFonts(); ensurePages();
@@ -371,17 +408,28 @@
     const delp=el('<button class="pbMini danger">🗑 pagina</button>'); delp.onclick=()=>{ if(cfg.pages.length<=1){ toast('Minstens 1 pagina'); return; } if(!confirm('Deze pagina verwijderen?')) return; cfg.pages.splice(desPage,1); desPage=Math.max(0,desPage-1); desSel=null; scheduleSave(); render(); };
     nav.append(prev,lbl,next,addp,delp); wrap.appendChild(nav);
 
-    wrap.appendChild(el('<p class="pbNote" style="margin:6px 0 2px">Achtergrond (Annecy / Frankrijk):</p>'));
+    wrap.appendChild(el('<p class="pbNote" style="margin:6px 0 2px">Achtergrond (Annecy / Frankrijk of eigen foto):</p>'));
     const bgrow=el('<div class="dsBar"></div>');
-    BGS.forEach(b=>{ const sw=el('<div class="dsSwatch '+(page.bg===b[0]?'on':'')+'" title="'+b[1]+'"></div>'); sw.style.background=b[2]; sw.onclick=()=>{ page.bg=b[0]; scheduleSave(); render(); }; bgrow.appendChild(sw); });
+    BGS.forEach(b=>{ const sw=el('<div class="dsSwatch '+(!page.bgPhoto && page.bg===b[0]?'on':'')+'" title="'+b[1]+'"></div>'); sw.style.background=b[2]; sw.onclick=()=>{ page.bg=b[0]; page.bgPhoto=null; scheduleSave(); render(); }; bgrow.appendChild(sw); });
     wrap.appendChild(bgrow);
+    const bgbtns=el('<div class="dsBar"></div>');
+    const bph=el('<button class="pbMini">📷 Eigen foto als achtergrond</button>'); bph.onclick=()=>pickBgPhoto(page); bgbtns.appendChild(bph);
+    if(page.bgPhoto){ const rem=el('<button class="pbMini danger">✕ Fotoachtergrond weg</button>'); rem.onclick=()=>{ page.bgPhoto=null; scheduleSave(); render(); }; bgbtns.appendChild(rem); }
+    const allb=el('<button class="pbMini">🔁 Op alle pagina\'s</button>'); allb.onclick=()=>{ if(!confirm('Deze achtergrond op ALLE pagina\'s toepassen?')) return; cfg.pages.forEach(pp=>{ pp.bg=page.bg; pp.bgPhoto=page.bgPhoto||null; }); scheduleSave(); render(); toast('Toegepast op alle pagina\'s'); }; bgbtns.appendChild(allb);
+    wrap.appendChild(bgbtns);
+
+    wrap.appendChild(el('<p class="pbNote" style="margin:8px 0 2px">Sjablonen (vult de pagina automatisch met je foto\'s):</p>'));
+    const tplrow=el('<div class="dsBar"></div>');
+    TEMPLATES.forEach(t=>{ const b=el('<button class="pbMini">'+t.name+'</button>'); b.onclick=()=>applyTemplate(t,page); tplrow.appendChild(b); });
+    wrap.appendChild(tplrow);
 
     const addbar=el('<div class="dsBar"></div>');
     const at=el('<button class="pbMini">➕ Tekstvak</button>'); at.onclick=()=>{ page.items.push({t:'text',id:uid(),text:'Typ hier…',x:12,y:12,w:62,h:16,font:"'Playfair Display',serif",size:6,color:'#0d3550',align:'left',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); };
-    addbar.appendChild(at); addbar.appendChild(el('<span class="pbNote" style="margin:0">Foto\'s voeg je onderaan toe · sleep om te schuiven · hoekje om te vergroten</span>')); wrap.appendChild(addbar);
+    addbar.appendChild(at); addbar.appendChild(el('<span class="pbNote" style="margin:0">Sleep aan het blauwe ⠿ (tekst) of de foto · rode hoekje = vergroten · tik in tekst om te typen</span>')); wrap.appendChild(addbar);
 
     const cw=el('<div class="dsCanvasWrap"></div>');
-    const canvas=el('<div class="dsCanvas" id="dsCanvas" style="aspect-ratio:'+ar+';background:'+bgCss(page.bg)+'"></div>');
+    const canvas=el('<div class="dsCanvas" id="dsCanvas" style="aspect-ratio:'+ar+'"></div>');
+    applyBgDom(canvas,page);
     (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>canvas.appendChild(renderItem(it,page)));
     cw.appendChild(canvas); wrap.appendChild(cw);
 
@@ -396,26 +444,33 @@
     const vw2=el('<button class="pbBtn alt" style="margin-top:14px">👁 Bekijk als digitaal boek (inkijkexemplaar)</button>'); vw2.onclick=openViewer; wrap.appendChild(vw2);
     const dl=el('<button class="pbBtn primary" style="margin-top:8px">⬇️ Ontwerp als print-PDF (voor Albelli)</button>'); dl.onclick=()=>exportDesignPDF(dl); wrap.appendChild(dl);
     wrap.appendChild(el('<p class="pbNote">Je vrije ontwerp wordt op de gekozen paginamaat geëxporteerd. Houd belangrijke dingen iets van de rand i.v.m. Albelli\'s afsnijding.</p>'));
+    wrap.appendChild(canvaHint());
   }
 
   function renderItem(it,page){
     const node=el('<div class="dsItem'+(desSel===it.id?' sel':'')+'" style="left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
-    if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img loading="lazy" decoding="async" src="'+(p?esc(thumb(p.url,1000)):'')+'">'); img.style.borderRadius=shapeCss(it.shape); node.appendChild(img); }
-    else { const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left'); tx.textContent=it.text||''; tx.addEventListener('pointerdown',e=>{ e.stopPropagation(); desSel=it.id; render(); }); tx.addEventListener('blur',()=>{ it.text=tx.textContent; scheduleSave(); }); node.appendChild(tx); }
+    if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img loading="lazy" decoding="async" src="'+(p?esc(thumb(p.url,1000)):'')+'">'); img.style.borderRadius=shapeCss(it.shape); node.appendChild(img); attachDrag(node,node,it); }
+    else {
+      const handle=el('<div class="dsHandle">⠿ sleep</div>');
+      const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left'); tx.textContent=it.text||'';
+      tx.addEventListener('focus',()=>{ desSel=it.id; });
+      tx.addEventListener('blur',()=>{ it.text=tx.textContent; scheduleSave(); });
+      node.appendChild(handle); node.appendChild(tx);
+      attachDrag(handle,node,it);
+    }
     const rsz=el('<div class="rsz"></div>'); node.appendChild(rsz);
-    dragItem(node,it); resizeItem(rsz,node,it);
+    resizeItem(rsz,node,it);
     return node;
   }
-  function dragItem(node,it){
-    node.addEventListener('pointerdown',function(e){
+  function attachDrag(listenEl,node,it){
+    listenEl.addEventListener('pointerdown',function(e){
       if(e.target.classList.contains('rsz')) return;
-      if(e.target.getAttribute && e.target.getAttribute('contenteditable')==='true'){ desSel=it.id; return; }
-      const cv=node.parentElement.getBoundingClientRect(); const sx=e.clientX, sy=e.clientY, ox=it.x, oy=it.y; desSel=it.id;
-      document.querySelectorAll('.dsItem').forEach(n=>n.classList.remove('sel')); node.classList.add('sel');
-      try{ node.setPointerCapture(e.pointerId); }catch(_){}
-      function mv(ev){ const dx=(ev.clientX-sx)/cv.width*100, dy=(ev.clientY-sy)/cv.height*100; it.x=Math.max(-15,Math.min(96,ox+dx)); it.y=Math.max(-15,Math.min(96,oy+dy)); node.style.left=it.x+'%'; node.style.top=it.y+'%'; }
-      function up(){ node.removeEventListener('pointermove',mv); node.removeEventListener('pointerup',up); scheduleSave(); const tb=document.getElementById('pbPrev'); render(); }
-      node.addEventListener('pointermove',mv); node.addEventListener('pointerup',up);
+      const cv=node.parentElement.getBoundingClientRect(); const sx=e.clientX, sy=e.clientY, ox=it.x, oy=it.y; let moved=false;
+      desSel=it.id; document.querySelectorAll('.dsItem').forEach(n=>n.classList.remove('sel')); node.classList.add('sel');
+      try{ listenEl.setPointerCapture(e.pointerId); }catch(_){}
+      function mv(ev){ if(Math.abs(ev.clientX-sx)+Math.abs(ev.clientY-sy)>4) moved=true; const dx=(ev.clientX-sx)/cv.width*100, dy=(ev.clientY-sy)/cv.height*100; it.x=Math.max(-15,Math.min(96,ox+dx)); it.y=Math.max(-15,Math.min(96,oy+dy)); node.style.left=it.x+'%'; node.style.top=it.y+'%'; }
+      function up(){ listenEl.removeEventListener('pointermove',mv); listenEl.removeEventListener('pointerup',up); if(moved) scheduleSave(); render(); }
+      listenEl.addEventListener('pointermove',mv); listenEl.addEventListener('pointerup',up);
     });
   }
   function resizeItem(handle,node,it){
@@ -460,7 +515,8 @@
       stage=document.createElement('div'); stage.style.cssText='position:fixed;left:-99999px;top:0;width:'+W+'px;height:'+H+'px;z-index:-1'; document.body.appendChild(stage);
       for(let pi=0; pi<cfg.pages.length; pi++){
         const page=cfg.pages[pi]; stage.innerHTML='';
-        const cv=document.createElement('div'); cv.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;overflow:hidden;background:'+bgCss(page.bg); stage.appendChild(cv);
+        const cv=document.createElement('div'); cv.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;overflow:hidden;'+(page.bgPhoto?'':'background:'+bgCss(page.bg)); stage.appendChild(cv);
+        if(page.bgPhoto){ const bp=photos.find(x=>x.id===page.bgPhoto); if(bp){ const bimg=new Image(); bimg.crossOrigin='anonymous'; bimg.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0'; const bpr=new Promise(r=>{ bimg.onload=r; bimg.onerror=r; }); bimg.src=bp.url; await bpr; cv.appendChild(bimg); } else { cv.style.background=bgCss(page.bg); } }
         for(let k=0;k<(page.items||[]).length;k++){
           const it=page.items[k]; const n=document.createElement('div'); n.style.cssText='position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0);
           if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=new Image(); img.crossOrigin='anonymous'; img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:'+shapeCss(it.shape); const pr=new Promise(r=>{ img.onload=r; img.onerror=r; }); img.src=p?p.url:''; await pr; n.appendChild(img); }
@@ -491,7 +547,8 @@
     if(tab==='design'){
       ensurePages();
       (cfg.pages||[]).forEach((page,idx)=>{
-        const pg=el('<div class="pbPage" style="max-width:600px;aspect-ratio:'+ar+';background:'+bgCss(page.bg)+';container-type:size"></div>');
+        const pg=el('<div class="pbPage" style="max-width:600px;aspect-ratio:'+ar+';container-type:size"></div>');
+        applyBgDom(pg,page);
         (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>{
           const n=el('<div style="position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
           if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); n.innerHTML='<img loading="lazy" src="'+(p?esc(thumb(p.url,1000)):'')+'" style="width:100%;height:100%;object-fit:cover;border-radius:'+shapeCss(it.shape)+'">'; }
