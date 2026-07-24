@@ -129,7 +129,7 @@
 <main class="content">
 <section id="home" class="screen active">
 <div class="stats"><div class="stat"><div>📆</div><b id="days">—</b><span>dagen</span></div><div class="stat" onclick="goGame('favs')" style="cursor:pointer"><div>❤️</div><b id="favCount">0</b><span>favorieten ›</span></div><div class="stat"><div>⭐</div><b id="bingoCount">0/25</b><span>bingo</span></div><div class="stat"><div>📋</div><b id="planCount">0</b><span>planning</span></div></div>
-<div class="card" style="display:flex;gap:10px;align-items:stretch"><button class="primary" style="flex:1;flex-direction:column;gap:2px;padding:14px 10px" onclick="goGame('fotos')"><span style="font-size:1.5rem">📖</span>Fotoalbum & fotoboek</button><button style="flex:1;flex-direction:column;gap:2px;padding:14px 10px;background:#ffe9e7;color:var(--ink)" onclick="goGame('favs')"><span style="font-size:1.5rem">❤️</span>Wie vindt wat leuk</button></div>
+<div class="card" style="display:flex;gap:10px;align-items:stretch"><button class="primary" style="flex:1;flex-direction:column;gap:2px;padding:14px 10px" onclick="openPhotobook()"><span style="font-size:1.5rem">📖</span>Fotoalbum & fotoboek</button><button style="flex:1;flex-direction:column;gap:2px;padding:14px 10px;background:#ffe9e7;color:var(--ink)" onclick="goGame('favs')"><span style="font-size:1.5rem">❤️</span>Wie vindt wat leuk</button></div>
 <div class="sectionHead"><h2>☀️ Aanbevolen voor vandaag</h2><button class="linkish" onclick="switchScreen('activities')">Bekijk alle ›</button></div><div class="recs" id="recs"></div>
 
 <div class="todayPlan card">
@@ -268,6 +268,7 @@ let cat='Alles', favOnly=false, si=Number(localStorage.getItem('song')||0)%S.len
 const catIcons={'Alles':'▦','Stranden':'🏖️','Actief':'⚡','Cultuur':'🏰','Wandelen':'🥾','Boot & water':'⛵','IJs & zoet':'🍦','Dorpen':'🌸','Uitzicht':'⛰️','Papa Actief':'🚵','Mama & Kids':'👩‍👧‍👦','Gezin':'👨‍👩‍👧‍👦','Papa + dochter 9':'👨‍👧','Pubers Actief':'😎','Eten':'🥐','Riviertjes':'🌊'};
 function switchScreen(id){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));scrollTo(0,0)}
 function goGame(g){switchScreen('games');setTimeout(function(){try{if(window.AnnecyOpenGame)window.AnnecyOpenGame(g);}catch(e){}},50)}
+function openPhotobook(){try{if(window.AnnecyPhotobook){window.AnnecyPhotobook.open('vos');return;}}catch(e){}goGame('fotos')}
 document.querySelectorAll('.nav button').forEach(b=>b.onclick=()=>switchScreen(b.dataset.screen));
 function startAdventure(){document.querySelector('.stats').scrollIntoView({behavior:'smooth'})}
 function getList(k){return JSON.parse(localStorage.getItem(k)||'[]')} function setList(k,v){localStorage.setItem(k,JSON.stringify(v))}
@@ -544,4 +545,5 @@ document.querySelectorAll("[data-screen]").forEach(btn=>btn.addEventListener("cl
 <script src="supabase-config.js"></script>
 <script src="supabase-live.js"></script>
 <script src="games-interactive.js"></script>
+<script src="photobook.js"></script>
 </body></html>

@@ -161,7 +161,6 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="top10"><span class="ic">⭐</span><span class="tt">Mijn top 10</span><span class="ds">Jouw wensen — zichtbaar voor de familie.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="vrijetijd"><span class="ic">🏖️</span><span class="tt">Vrije tijd</span><span class="ds">Wat wil jij doen bij de camping?</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="favs"><span class="ic">❤️</span><span class="tt">Wie vindt wat leuk</span><span class="ds">Ieders favorieten uit Activiteiten.</span></button>
-      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="fotos"><span class="ic">📷</span><span class="tt">Fotoalbum</span><span class="ds">Deel foto's · maak een fotoboek.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="speur"><span class="ic">🔍</span><span class="tt">Speurtocht</span><span class="ds">Kids & volwassenen · rond de camping.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
