@@ -268,7 +268,7 @@ let cat='Alles', favOnly=false, si=Number(localStorage.getItem('song')||0)%S.len
 const catIcons={'Alles':'▦','Stranden':'🏖️','Actief':'⚡','Cultuur':'🏰','Wandelen':'🥾','Boot & water':'⛵','IJs & zoet':'🍦','Dorpen':'🌸','Uitzicht':'⛰️','Papa Actief':'🚵','Mama & Kids':'👩‍👧‍👦','Gezin':'👨‍👩‍👧‍👦','Papa + dochter 9':'👨‍👧','Pubers Actief':'😎','Eten':'🥐','Riviertjes':'🌊'};
 function switchScreen(id){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));scrollTo(0,0)}
 function goGame(g){switchScreen('games');setTimeout(function(){try{if(window.AnnecyOpenGame)window.AnnecyOpenGame(g);}catch(e){}},50)}
-function openPhotobook(){if(window.AnnecyPhotobook){try{window.AnnecyPhotobook.open('vos');}catch(e){console.error(e);alert('Fotoboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='photobook.js?v=32';s.onload=function(){if(window.AnnecyPhotobook)window.AnnecyPhotobook.open('vos');};document.head.appendChild(s);}
+function openPhotobook(){if(window.AnnecyPhotobook){try{window.AnnecyPhotobook.open('vos');}catch(e){console.error(e);alert('Fotoboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='photobook.js?v=33';s.onload=function(){if(window.AnnecyPhotobook)window.AnnecyPhotobook.open('vos');};document.head.appendChild(s);}
 function openFavsPopup(){
   function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   var A=window.AnnecyLive;
@@ -391,7 +391,7 @@ function buildTodayPlan(){
 }
 
 let deferred;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;installBtn.hidden=false});installBtn.onclick=()=>deferred&&deferred.prompt();
-renderFilters();renderSong();renderAll();renderSecrets();renderGames();renderFamilyScores();renderTop10();countdownFn();loadWeather().finally(()=>buildTodayPlan());if('serviceWorker'in navigator)navigator.serviceWorker.register('./service-worker.js');
+renderFilters();renderSong();renderAll();renderSecrets();renderGames();renderFamilyScores();renderTop10();countdownFn();loadWeather().finally(()=>buildTodayPlan());if('serviceWorker'in navigator){navigator.serviceWorker.register('./service-worker.js');var __pbRef=false;navigator.serviceWorker.addEventListener('controllerchange',function(){if(__pbRef)return;__pbRef=true;location.reload();});}
 
 
 // ===== V16 VACATION PLANNER =====
@@ -562,5 +562,5 @@ document.querySelectorAll("[data-screen]").forEach(btn=>btn.addEventListener("cl
 <script src="supabase-config.js?v=24"></script>
 <script src="supabase-live.js?v=26"></script>
 <script src="games-interactive.js?v=30"></script>
-<script src="photobook.js?v=32"></script>
+<script src="photobook.js?v=33"></script>
 </body></html>

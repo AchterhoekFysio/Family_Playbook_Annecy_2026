@@ -133,7 +133,7 @@
     try{ if(chan) c.removeChannel(chan); }catch(e){}
     try{ chan=c.channel('pb-'+g).on('postgres_changes',{event:'*',schema:'public',table:'photos',filter:'group_id=eq.'+g},()=>{ if(document.getElementById('pbRoot')) softReload(); }).subscribe(); }catch(e){}
   }
-  async function softReload(){ const c=lc(), g=gid(); try{ const r=await c.from('photos').select('*').eq('group_id',g).eq('album',album).order('created_at'); photos=r.data||[]; const ids=photos.map(p=>p.id); cfg.order=(cfg.order||[]).filter(id=>ids.includes(id)); ids.forEach(id=>{ if(!cfg.order.includes(id)) cfg.order.push(id); }); if(!openPhotoId) render(); }catch(e){} }
+  async function softReload(){ const c=lc(), g=gid(); try{ const r=await c.from('photos').select('*').eq('group_id',g).eq('album',album).order('created_at'); photos=r.data||[]; const ids=photos.map(p=>p.id); cfg.order=(cfg.order||[]).filter(id=>ids.includes(id)); ids.forEach(id=>{ if(!cfg.order.includes(id)) cfg.order.push(id); }); const ae=document.activeElement; if(!(ae&&(ae.tagName==='INPUT'||ae.isContentEditable))) render(); }catch(e){} }
 
   async function uploadFiles(files){
     const c=lc(), g=gid(); const pl=me();
@@ -189,17 +189,32 @@
     inp.onchange=async()=>{ const files=Array.from(inp.files||[]); if(!files.length)return; up.innerHTML='Bezig met uploaden… ('+files.length+')'; await uploadFiles(files); inp.value=''; await softReload(); toast(files.length+' foto\'s toegevoegd 🎉'); render(); };
     wrap.appendChild(up);
     if(!photos.length){ wrap.appendChild(el('<p class="pbNote">Nog geen foto\'s. Tik hierboven om foto\'s vanaf je telefoon toe te voegen. Iedereen in de familie ziet ze live.</p>')); return; }
-    wrap.appendChild(el('<p class="pbNote">Tik op een foto om bijschrift, cover, volgorde of verwijderen te regelen. 🚫 = niet in het boek.</p>'));
-    const grid=el('<div class="pbGrid"></div>');
+    wrap.appendChild(el('<p class="pbNote">Typ direct een bijschrift bij elke foto. Knoppen: ☆ cover · ↑↓ volgorde · 🚫 uit het boek · 🗑 verwijderen (tik twee keer).</p>'));
+    const grid=el('<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:8px"></div>');
     ordered().forEach(p=>{
       const hidden=cfg.hidden.includes(p.id), isCover=cfg.cover===p.id;
-      const cell=el('<div class="pbCell '+(isCover?'cover':'')+'"><img loading="lazy" decoding="async" src="'+esc(thumb(p.url,420))+'" alt="">'+(isCover?'<span class="pbCoverBadge">COVER</span>':'')+(p.caption?'<span class="tag">'+esc(p.caption)+'</span>':'')+(hidden?'<span class="hid">🚫</span>':'')+'</div>');
-      cell.onclick=()=>{ openPhotoId=(openPhotoId===p.id?null:p.id); render(); };
-      grid.appendChild(cell);
-      if(openPhotoId===p.id) grid.appendChild(photoEditor(p));
+      const card=el('<div style="border:1px solid '+(isCover?'#ff6f68':'#e6eeeb')+';border-radius:14px;overflow:hidden;background:#fff'+(hidden?';opacity:.6':'')+'"></div>');
+      const media=el('<div style="position:relative"></div>');
+      media.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,420))+'" style="width:100%;height:148px;object-fit:cover;display:block">'));
+      if(isCover) media.appendChild(el('<span style="position:absolute;top:6px;left:6px;background:#ff6f68;color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:6px">COVER</span>'));
+      if(hidden) media.appendChild(el('<span style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;padding:2px 6px;border-radius:6px">🚫</span>'));
+      card.appendChild(media);
+      const body=el('<div style="padding:8px"></div>');
+      const cap=el('<input placeholder="Bijschrift…" style="width:100%;padding:7px 9px;border:1px solid #d5e0dd;border-radius:8px;font-size:13px">'); cap.value=p.caption||'';
+      cap.onchange=async()=>{ p.caption=cap.value; try{ await lc().rpc('set_photo_caption',{p_photo_id:p.id,p_caption:cap.value}); toast('Bijschrift opgeslagen'); }catch(e){} };
+      body.appendChild(cap);
+      const row=el('<div class="pbMiniRow" style="margin-top:7px"></div>');
+      const cov=el('<button class="pbMini" title="Als cover">'+(isCover?'★':'☆')+'</button>'); cov.onclick=()=>{ cfg.cover=(isCover?null:p.id); scheduleSave(); render(); };
+      const up2=el('<button class="pbMini" title="Eerder">↑</button>'); up2.onclick=()=>move(p.id,-1);
+      const dn=el('<button class="pbMini" title="Later">↓</button>'); dn.onclick=()=>move(p.id,1);
+      const hid=el('<button class="pbMini" title="'+(hidden?'Terug in boek':'Uit boek')+'">'+(hidden?'👁':'🚫')+'</button>'); hid.onclick=()=>{ if(hidden) cfg.hidden=cfg.hidden.filter(i=>i!==p.id); else cfg.hidden.push(p.id); scheduleSave(); render(); };
+      let armed=false; const del=el('<button class="pbMini danger">🗑</button>'); del.onclick=()=>{ if(!armed){ armed=true; del.textContent='Zeker?'; setTimeout(()=>{ armed=false; del.textContent='🗑'; },2500); return; } removePhoto(p); };
+      row.append(cov,up2,dn,hid,del); body.appendChild(row);
+      body.appendChild(el('<p class="pbNote" style="margin:6px 0 0;font-size:11px">'+esc(p.uploader_name||'')+'</p>'));
+      card.appendChild(body); grid.appendChild(card);
     });
     wrap.appendChild(grid);
-    if(A()&&A().isAdmin && photos.length){ const cl=el('<button class="pbBtn ghost" style="margin-top:16px;color:#c0392b">🗑 Album leegmaken (alle foto\'s wissen)</button>'); cl.onclick=clearAlbum; wrap.appendChild(cl); }
+    if(A()&&A().isAdmin && photos.length){ let armedAll=false; const cl=el('<button class="pbBtn ghost" style="margin-top:16px;color:#c0392b">🗑 Album leegmaken (alle foto\'s wissen)</button>'); cl.onclick=()=>{ if(!armedAll){ armedAll=true; cl.textContent='Zeker weten? Tik nogmaals om ALLES te wissen'; setTimeout(()=>{ armedAll=false; cl.textContent='🗑 Album leegmaken (alle foto\'s wissen)'; },3000); return; } clearAlbum(); }; wrap.appendChild(cl); }
   }
 
   function photoEditor(p){
@@ -219,17 +234,14 @@
   }
   function move(id,dir){ const i=cfg.order.indexOf(id), j=i+dir; if(i<0||j<0||j>=cfg.order.length) return; const t=cfg.order[i]; cfg.order[i]=cfg.order[j]; cfg.order[j]=t; scheduleSave(); render(); }
   async function removePhoto(p){
-    if(!confirm('Deze foto definitief verwijderen uit het album?')) return;
     const c=lc();
     try{ if(p.path) await c.storage.from('fotos').remove([p.path]); }catch(e){}
     try{ await c.from('photos').delete().eq('id',p.id); }catch(e){ toast('Verwijderen lukte niet'); return; }
-    photos=photos.filter(x=>x.id!==p.id); cfg.order=cfg.order.filter(i=>i!==p.id); cfg.hidden=cfg.hidden.filter(i=>i!==p.id); if(cfg.cover===p.id)cfg.cover=null; openPhotoId=null; scheduleSave(); render(); toast('Verwijderd');
+    photos=photos.filter(x=>x.id!==p.id); cfg.order=cfg.order.filter(i=>i!==p.id); cfg.hidden=cfg.hidden.filter(i=>i!==p.id); if(cfg.cover===p.id)cfg.cover=null; scheduleSave(); render(); toast('Foto verwijderd');
   }
   async function clearAlbum(){
     const a=A();
     if(!(a&&a.isAdmin)){ toast('Alleen de beheerder kan het album leegmaken'); return; }
-    if(!confirm('ALLE foto\'s van "'+albName()+'" verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
-    if(!confirm('Echt zeker weten? Alle foto\'s in dit album worden definitief gewist.')) return;
     const c=lc(); const paths=photos.map(p=>p.path).filter(Boolean);
     try{ if(paths.length) await c.storage.from('fotos').remove(paths); }catch(e){}
     try{ await c.from('photos').delete().eq('group_id',gid()).eq('album',album); }catch(e){ toast('Leegmaken lukte niet'); return; }
