@@ -72,6 +72,19 @@
   .pbCover .ct h3{margin:3px 0;font-size:22px;line-height:1.05}
   .pbCover .ct p{margin:0;font-size:12px;opacity:.9}
   .pbGate{background:#fff;border-radius:16px;padding:22px;text-align:center;box-shadow:0 8px 22px rgba(13,53,80,.08)}
+  .dsBar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+  .dsCanvasWrap{background:#e7eeec;border-radius:12px;padding:10px;margin:8px 0}
+  .dsCanvas{position:relative;width:100%;overflow:hidden;border-radius:4px;box-shadow:0 6px 18px rgba(13,53,80,.18);background:#fff;touch-action:none;container-type:size}
+  .dsItem{position:absolute;cursor:move;touch-action:none}
+  .dsItem.sel{outline:2px solid #ff6f68;outline-offset:1px}
+  .dsItem>img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+  .dsText{padding:4px 6px;overflow:hidden;line-height:1.15}
+  .dsText[contenteditable]{outline:none}
+  .rsz{position:absolute;right:-10px;bottom:-10px;width:20px;height:20px;background:#ff6f68;border:2px solid #fff;border-radius:50%;cursor:nwse-resize;touch-action:none}
+  .dsStrip{display:flex;gap:6px;overflow-x:auto;padding:6px 2px;scrollbar-width:none}
+  .dsStrip img{height:62px;width:62px;object-fit:cover;border-radius:8px;cursor:pointer;flex:0 0 auto}
+  .dsSwatch{width:32px;height:32px;border-radius:8px;border:2px solid #fff;box-shadow:0 0 0 1px #d5e0dd;cursor:pointer;flex:0 0 auto}
+  .dsSwatch.on{box-shadow:0 0 0 2px #ff6f68}
   `;
 
   function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
@@ -146,11 +159,12 @@
 
     // tabs
     const tabs=el('<div class="pbTabs"></div>');
-    const t1=el('<button class="pbTab '+(tab==='album'?'on':'')+'">📷 Album ('+inBook().length+')</button>'); t1.onclick=()=>{ tab='album'; render(); };
-    const t2=el('<button class="pbTab '+(tab==='book'?'on':'')+'">📖 Fotoboek maken</button>'); t2.onclick=()=>{ tab='book'; render(); };
-    tabs.appendChild(t1); tabs.appendChild(t2); wrap.appendChild(tabs);
+    const t1=el('<button class="pbTab '+(tab==='album'?'on':'')+'" style="font-size:13.5px">📷 Album ('+inBook().length+')</button>'); t1.onclick=()=>{ tab='album'; render(); };
+    const t3=el('<button class="pbTab '+(tab==='design'?'on':'')+'" style="font-size:13.5px">✨ Ontwerpen</button>'); t3.onclick=()=>{ tab='design'; render(); };
+    const t2=el('<button class="pbTab '+(tab==='book'?'on':'')+'" style="font-size:13.5px">📖 Snel boek</button>'); t2.onclick=()=>{ tab='book'; render(); };
+    tabs.appendChild(t1); tabs.appendChild(t3); tabs.appendChild(t2); wrap.appendChild(tabs);
 
-    if(tab==='album') renderAlbum(wrap); else renderBook(wrap);
+    if(tab==='album') renderAlbum(wrap); else if(tab==='design') renderDesign(wrap); else renderBook(wrap);
   }
 
   function renderAlbum(wrap){
@@ -323,6 +337,141 @@
       toast('PDF gedownload ✓');
     }catch(e){ console.error(e); alert('PDF maken lukte niet. Mogelijk blokkeert een foto de download; probeer opnieuw of met minder foto\'s.'); }
     finally{ if(btn){ btn.disabled=false; btn.textContent=old; } }
+  }
+
+  /* ---------- VRIJE OPMAAK (visuele editor) ---------- */
+  let desPage=0, desSel=null;
+  function ensureFonts(){ if(document.getElementById('pbFonts'))return; const l=document.createElement('link'); l.id='pbFonts'; l.rel='stylesheet'; l.href='https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Dancing+Script:wght@600&family=Pacifico&family=Caveat:wght@700&family=Bebas+Neue&display=swap'; document.head.appendChild(l); }
+  const FONTS=[['system-ui','Standaard'],["'Playfair Display',serif",'Elegant'],["'Dancing Script',cursive",'Handschrift'],["'Pacifico',cursive",'Speels'],["'Caveat',cursive",'Marker'],["'Bebas Neue',sans-serif",'Titel']];
+  const BGS=[
+    ['paper','Papier','#fbf7ef'],
+    ['lake','Meer van Annecy','linear-gradient(160deg,#7ec8e3,#2b7bb0 60%,#0d3550)'],
+    ['alps','Alpen','linear-gradient(180deg,#dbe7ef,#9fb8c9 70%,#6b8194)'],
+    ['lavender','Lavendel (Provence)','linear-gradient(160deg,#efe3fb,#b89ad9 70%,#7a5fa6)'],
+    ['sunset','Zonsondergang','linear-gradient(160deg,#ffe6c7,#ff9e7d 60%,#e75a7c)'],
+    ['tricolore','Frankrijk','linear-gradient(90deg,#0055a4 0 33%,#f7f7f7 33% 66%,#ef4135 66%)'],
+    ['forclaz','Bergmeer','linear-gradient(180deg,#c6e6da,#5bb89a 55%,#1f6f8b)']
+  ];
+  function bgCss(k){ const b=BGS.find(x=>x[0]===k); return b?b[2]:'#fbf7ef'; }
+  function shapeCss(sh){ return sh==='circle'?'50%':(sh==='pill'?'40px':(sh==='rect'?'0':'12px')); }
+  function ensurePages(){ if(!Array.isArray(cfg.pages)) cfg.pages=[]; if(!cfg.pages.length) cfg.pages=[{bg:'paper',items:[]}]; if(desPage>=cfg.pages.length) desPage=cfg.pages.length-1; if(desPage<0) desPage=0; }
+  function uid(){ return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+  function renderDesign(wrap){
+    ensureFonts(); ensurePages();
+    const page=cfg.pages[desPage]; const s=sizeObj(), ar=s.w/s.h;
+    const nav=el('<div class="dsBar"></div>');
+    const prev=el('<button class="pbMini">‹</button>'); prev.onclick=()=>{ if(desPage>0){ desPage--; desSel=null; render(); } };
+    const lbl=el('<span style="font-weight:800">Pagina '+(desPage+1)+' / '+cfg.pages.length+'</span>');
+    const next=el('<button class="pbMini">›</button>'); next.onclick=()=>{ if(desPage<cfg.pages.length-1){ desPage++; desSel=null; render(); } };
+    const addp=el('<button class="pbMini">+ pagina</button>'); addp.onclick=()=>{ cfg.pages.push({bg:page.bg,items:[]}); desPage=cfg.pages.length-1; desSel=null; scheduleSave(); render(); };
+    const delp=el('<button class="pbMini danger">🗑 pagina</button>'); delp.onclick=()=>{ if(cfg.pages.length<=1){ toast('Minstens 1 pagina'); return; } if(!confirm('Deze pagina verwijderen?')) return; cfg.pages.splice(desPage,1); desPage=Math.max(0,desPage-1); desSel=null; scheduleSave(); render(); };
+    nav.append(prev,lbl,next,addp,delp); wrap.appendChild(nav);
+
+    wrap.appendChild(el('<p class="pbNote" style="margin:6px 0 2px">Achtergrond (Annecy / Frankrijk):</p>'));
+    const bgrow=el('<div class="dsBar"></div>');
+    BGS.forEach(b=>{ const sw=el('<div class="dsSwatch '+(page.bg===b[0]?'on':'')+'" title="'+b[1]+'"></div>'); sw.style.background=b[2]; sw.onclick=()=>{ page.bg=b[0]; scheduleSave(); render(); }; bgrow.appendChild(sw); });
+    wrap.appendChild(bgrow);
+
+    const addbar=el('<div class="dsBar"></div>');
+    const at=el('<button class="pbMini">➕ Tekstvak</button>'); at.onclick=()=>{ page.items.push({t:'text',id:uid(),text:'Typ hier…',x:12,y:12,w:62,h:16,font:"'Playfair Display',serif",size:6,color:'#0d3550',align:'left',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); };
+    addbar.appendChild(at); addbar.appendChild(el('<span class="pbNote" style="margin:0">Foto\'s voeg je onderaan toe · sleep om te schuiven · hoekje om te vergroten</span>')); wrap.appendChild(addbar);
+
+    const cw=el('<div class="dsCanvasWrap"></div>');
+    const canvas=el('<div class="dsCanvas" id="dsCanvas" style="aspect-ratio:'+ar+';background:'+bgCss(page.bg)+'"></div>');
+    (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>canvas.appendChild(renderItem(it,page)));
+    cw.appendChild(canvas); wrap.appendChild(cw);
+
+    if(desSel){ const it=(page.items||[]).find(x=>x.id===desSel); if(it) wrap.appendChild(itemToolbar(it,page)); }
+
+    wrap.appendChild(el('<p class="pbNote" style="margin:10px 0 2px">Tik een foto om \'m op de pagina te zetten:</p>'));
+    const strip=el('<div class="dsStrip"></div>');
+    if(!photos.length) strip.appendChild(el('<span class="pbNote">Nog geen foto\'s — voeg ze toe in het Album.</span>'));
+    ordered().forEach(p=>{ const im=el('<img src="'+esc(p.url)+'">'); im.onclick=()=>{ page.items.push({t:'photo',id:uid(),photo:p.id,x:15,y:20,w:55,h:42,shape:'round',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; strip.appendChild(im); });
+    wrap.appendChild(strip);
+
+    const dl=el('<button class="pbBtn primary" style="margin-top:14px">⬇️ Ontwerp als print-PDF (voor Albelli)</button>'); dl.onclick=()=>exportDesignPDF(dl); wrap.appendChild(dl);
+    wrap.appendChild(el('<p class="pbNote">Je vrije ontwerp wordt op de gekozen paginamaat geëxporteerd. Houd belangrijke dingen iets van de rand i.v.m. Albelli\'s afsnijding.</p>'));
+  }
+
+  function renderItem(it,page){
+    const node=el('<div class="dsItem'+(desSel===it.id?' sel':'')+'" style="left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
+    if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img src="'+(p?esc(p.url):'')+'">'); img.style.borderRadius=shapeCss(it.shape); node.appendChild(img); }
+    else { const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left'); tx.textContent=it.text||''; tx.addEventListener('pointerdown',e=>{ e.stopPropagation(); desSel=it.id; render(); }); tx.addEventListener('blur',()=>{ it.text=tx.textContent; scheduleSave(); }); node.appendChild(tx); }
+    const rsz=el('<div class="rsz"></div>'); node.appendChild(rsz);
+    dragItem(node,it); resizeItem(rsz,node,it);
+    return node;
+  }
+  function dragItem(node,it){
+    node.addEventListener('pointerdown',function(e){
+      if(e.target.classList.contains('rsz')) return;
+      if(e.target.getAttribute && e.target.getAttribute('contenteditable')==='true'){ desSel=it.id; return; }
+      const cv=node.parentElement.getBoundingClientRect(); const sx=e.clientX, sy=e.clientY, ox=it.x, oy=it.y; desSel=it.id;
+      document.querySelectorAll('.dsItem').forEach(n=>n.classList.remove('sel')); node.classList.add('sel');
+      try{ node.setPointerCapture(e.pointerId); }catch(_){}
+      function mv(ev){ const dx=(ev.clientX-sx)/cv.width*100, dy=(ev.clientY-sy)/cv.height*100; it.x=Math.max(-15,Math.min(96,ox+dx)); it.y=Math.max(-15,Math.min(96,oy+dy)); node.style.left=it.x+'%'; node.style.top=it.y+'%'; }
+      function up(){ node.removeEventListener('pointermove',mv); node.removeEventListener('pointerup',up); scheduleSave(); const tb=document.getElementById('pbPrev'); render(); }
+      node.addEventListener('pointermove',mv); node.addEventListener('pointerup',up);
+    });
+  }
+  function resizeItem(handle,node,it){
+    handle.addEventListener('pointerdown',function(e){
+      e.stopPropagation(); const cv=node.parentElement.getBoundingClientRect(); const sx=e.clientX, sy=e.clientY, ow=it.w, oh=it.h;
+      try{ handle.setPointerCapture(e.pointerId); }catch(_){}
+      function mv(ev){ const dw=(ev.clientX-sx)/cv.width*100, dh=(ev.clientY-sy)/cv.height*100; it.w=Math.max(8,Math.min(100,ow+dw)); it.h=Math.max(6,Math.min(100,oh+dh)); node.style.width=it.w+'%'; node.style.height=it.h+'%'; }
+      function up(){ handle.removeEventListener('pointermove',mv); handle.removeEventListener('pointerup',up); scheduleSave(); }
+      handle.addEventListener('pointermove',mv); handle.addEventListener('pointerup',up);
+    });
+  }
+  function itemToolbar(it,page){
+    const box=el('<div class="pbEdit"></div>');
+    box.appendChild(el('<p style="font-weight:800;margin:0 0 6px">Geselecteerd: '+(it.t==='photo'?'foto':'tekst')+'</p>'));
+    const row=el('<div class="pbMiniRow"></div>');
+    if(it.t==='photo'){
+      [['round','afgerond'],['rect','recht'],['circle','rond'],['pill','ovaal']].forEach(sh=>{ const b=el('<button class="pbMini">'+sh[1]+'</button>'); b.onclick=()=>{ it.shape=sh[0]; scheduleSave(); render(); }; row.appendChild(b); });
+    } else {
+      const fs=el('<select class="pbMini"></select>'); FONTS.forEach(f=>{ const o=document.createElement('option'); o.value=f[0]; o.textContent=f[1]; if(it.font===f[0])o.selected=true; fs.appendChild(o); }); fs.onchange=()=>{ it.font=fs.value; scheduleSave(); render(); }; row.appendChild(fs);
+      const mn=el('<button class="pbMini">A−</button>'); mn.onclick=()=>{ it.size=Math.max(2,(it.size||6)-1); scheduleSave(); render(); }; row.appendChild(mn);
+      const pl=el('<button class="pbMini">A+</button>'); pl.onclick=()=>{ it.size=Math.min(24,(it.size||6)+1); scheduleSave(); render(); }; row.appendChild(pl);
+      ['#0d3550','#ffffff','#ff6f68','#0f91a3','#e75a7c'].forEach(c=>{ const b=el('<button class="pbMini" style="width:26px;height:26px;padding:0;background:'+c+'"></button>'); b.onclick=()=>{ it.color=c; scheduleSave(); render(); }; row.appendChild(b); });
+    }
+    box.appendChild(row);
+    const row2=el('<div class="pbMiniRow"></div>');
+    const fr=el('<button class="pbMini">⬆ naar voren</button>'); fr.onclick=()=>{ it.z=Math.max.apply(null,page.items.map(x=>x.z||0))+1; scheduleSave(); render(); };
+    const bk=el('<button class="pbMini">⬇ naar achter</button>'); bk.onclick=()=>{ it.z=Math.min.apply(null,page.items.map(x=>x.z||0))-1; scheduleSave(); render(); };
+    const dl=el('<button class="pbMini danger">🗑 verwijderen</button>'); dl.onclick=()=>{ page.items=page.items.filter(x=>x.id!==it.id); desSel=null; scheduleSave(); render(); };
+    row2.append(fr,bk,dl); box.appendChild(row2);
+    return box;
+  }
+  function ensureH2C(){ return ensureScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', ()=>window.html2canvas); }
+  async function exportDesignPDF(btn){
+    ensurePages(); if(!cfg.pages.length){ toast('Geen pagina\'s'); return; }
+    const old=btn?btn.textContent:''; if(btn){ btn.disabled=true; btn.textContent='PDF wordt gemaakt…'; }
+    let stage=null;
+    try{
+      await ensureJsPDF(); await ensureH2C();
+      const s=sizeObj(), ar=s.w/s.h, pw=s.w, ph=s.h;
+      const { jsPDF }=window.jspdf; const doc=new jsPDF({orientation: pw>=ph?'landscape':'portrait', unit:'mm', format:[pw,ph]});
+      const W=1240, H=Math.round(W/ar);
+      stage=document.createElement('div'); stage.style.cssText='position:fixed;left:-99999px;top:0;width:'+W+'px;height:'+H+'px;z-index:-1'; document.body.appendChild(stage);
+      for(let pi=0; pi<cfg.pages.length; pi++){
+        const page=cfg.pages[pi]; stage.innerHTML='';
+        const cv=document.createElement('div'); cv.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;overflow:hidden;background:'+bgCss(page.bg); stage.appendChild(cv);
+        for(let k=0;k<(page.items||[]).length;k++){
+          const it=page.items[k]; const n=document.createElement('div'); n.style.cssText='position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0);
+          if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=new Image(); img.crossOrigin='anonymous'; img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:'+shapeCss(it.shape); const pr=new Promise(r=>{ img.onload=r; img.onerror=r; }); img.src=p?p.url:''; await pr; n.appendChild(img); }
+          else { const t=document.createElement('div'); t.textContent=it.text||''; t.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+(it.size*W/100)+'px;color:'+it.color+';text-align:'+(it.align||'left')+';padding:4px 6px;overflow:hidden;line-height:1.15'; n.appendChild(t); }
+          cv.appendChild(n);
+        }
+        const canvas=await window.html2canvas(cv,{useCORS:true,scale:2,backgroundColor:null,logging:false});
+        const data=canvas.toDataURL('image/jpeg',0.92);
+        if(pi>0) doc.addPage([pw,ph], pw>=ph?'landscape':'portrait');
+        doc.addImage(data,'JPEG',0,0,pw,ph);
+      }
+      doc.save('Fotoboek-ontwerp-'+album+'-Annecy2026.pdf');
+      toast('PDF gedownload ✓');
+    }catch(e){ console.error(e); alert('PDF maken lukte niet. Probeer opnieuw of met minder items.'); }
+    finally{ if(stage&&stage.parentNode) stage.parentNode.removeChild(stage); if(btn){ btn.disabled=false; btn.textContent=old; } }
   }
 
   function close(){ try{ if(chan) lc().removeChannel(chan); }catch(e){} chan=null; const r=document.getElementById('pbRoot'); if(r) r.remove(); document.body.style.overflow=''; }
