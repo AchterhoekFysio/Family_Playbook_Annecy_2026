@@ -160,7 +160,6 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="speur"><span class="ic">🔍</span><span class="tt">Speurtocht</span><span class="ds">Kids & volwassenen · rond de camping.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="live"><span class="ic">🎬</span><span class="tt">Samen live</span><span class="ds">Quizshow: iedereen tegelijk, met afteltimer. Eén host.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="woordrace"><span class="ic">🔤</span><span class="tt">Woordrace</span><span class="ds">Ontwar woorden tegen de klok · kids & volwassen.</span></button>
-      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tijdbom"><span class="ic">💣</span><span class="tt">Tijdbom</span><span class="ds">Party met 1 telefoon · geef door!</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="snake"><span class="ic">🐍</span><span class="tt">Snake</span><span class="ds">Klassieker · je beste score telt.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
@@ -607,24 +606,33 @@
     function scramble(w){ const a=w.split(''); let s; do{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } s=a.join(''); }while(s===w && w.length>1); return s; }
     function levelPick(){ p.querySelector('.phBack').onclick=menu; body.innerHTML='<p class="phNote">Ontwar zoveel mogelijk woorden binnen 60 seconden. Kies je niveau:</p>'; const k=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧒</span><span class="tt">Kids</span><span class="ds">Korte, makkelijke woorden · elk goed = 12 punten (extra!).</span></button>'); const v=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧑</span><span class="tt">Volwassen</span><span class="ds">Langere & Franse woorden · elk goed = 10 punten.</span></button>'); k.onclick=()=>round('kids'); v.onclick=()=>round('volw'); body.appendChild(k); body.appendChild(v); }
     function round(level){
-      let pool=shuffle(level==='kids'?KIDS:VOLW), idx=0, correct=0, cur='', left=60, tick=null;
-      const per=level==='kids'?12:10;
-      function next(){ if(idx>=pool.length){ pool=pool.concat(shuffle(level==='kids'?KIDS:VOLW)); } cur=pool[idx++]; draw(); }
+      const fresh=()=>shuffle(level==='kids'?KIDS:VOLW);
+      let pool=fresh(), idx=0, score=0, lives=3, cur='', tleft=0, tick=null, answered=false;
+      const per=level==='kids'?12:10, PERT=level==='kids'?22:18;
+      const hearts=()=>'❤️'.repeat(lives)+'🤍'.repeat(3-lives);
+      function stopTick(){ if(tick){clearInterval(tick);tick=null;} }
+      function startTick(){ stopTick(); tick=setInterval(()=>{ if(answered)return; tleft--; const t=document.getElementById('wrT'); if(t)t.textContent=tleft+'s'; if(tleft<=0) fail('⏰ Te laat!'); },1000); }
+      function nextWord(){ answered=false; tleft=PERT; if(idx>=pool.length){ pool=pool.concat(fresh()); } cur=pool[idx++]; draw(); startTick(); }
       function draw(){
-        body.innerHTML=`<div class="phBar"><span class="phNote">${correct} goed</span><span class="phTimer" id="wrT">${left}s</span></div><p class="phQ phCenter" style="letter-spacing:5px;font-size:28px">${esc(scramble(cur).toUpperCase())}</p>`;
+        body.innerHTML=`<div class="phBar"><span class="phNote">${score} goed · ${hearts()}</span><span class="phTimer" id="wrT">${tleft}s</span></div><p class="phQ phCenter" style="letter-spacing:5px;font-size:28px">${esc(scramble(cur).toUpperCase())}</p>`;
         const inp=el('<input placeholder="Jouw woord…" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px">');
-        const row=el('<div class="phBtnRow" style="margin-top:8px"></div>');
-        const ok=el('<button class="phBtn coral" style="flex:1">Check</button>'); const sk=el('<button class="phBtn alt">Overslaan ›</button>');
-        const check=()=>{ if(inp.value.trim().toLowerCase()===cur){ correct++; toast('Goed! ✓'); next(); } else { inp.style.borderColor='#e05a52'; toast('Nog niet…'); } };
-        ok.onclick=check; sk.onclick=next; inp.onkeydown=(e)=>{ if(e.key==='Enter') check(); };
-        row.appendChild(ok); row.appendChild(sk); body.appendChild(inp); body.appendChild(row);
-        body.appendChild(el('<p class="phNote phCenter" style="margin-top:8px">Tip: het is een vakantiewoord.</p>'));
+        const ok=el('<button class="phBtn coral" style="width:100%;margin-top:8px">Check</button>');
+        const check=()=>{ if(answered)return; if(inp.value.trim().toLowerCase()===cur){ answered=true; stopTick(); score++; toast('Goed! ✓'); nextWord(); } else { fail('❌ Fout'); } };
+        ok.onclick=check; inp.onkeydown=(e)=>{ if(e.key==='Enter') check(); };
+        body.appendChild(inp); body.appendChild(ok);
+        body.appendChild(el('<p class="phNote phCenter" style="margin-top:8px">Tip: het is een vakantiewoord. Bij <b>3 fout</b> ben je af.</p>'));
         setTimeout(()=>inp.focus(),40);
       }
-      function end(){ if(tick){clearInterval(tick);tick=null;} const pts=correct*per; recordGame('woordrace',pts,{done:true,goed:correct,level},`Woordrace ${level}: ${correct} goed`); body.innerHTML=`<div class="phCenter"><p class="phBig">${correct} woorden! 🎉</p><p class="phNote">Deze ronde = <span class="phBest">${pts} punten</span>. Je beste ronde telt mee.</p></div>`; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px"></div>'); const a=el('<button class="phBtn coral">Nog een ronde 🔁</button>'); a.onclick=levelPick; const b=el('<button class="phBtn alt">Terug</button>'); b.onclick=menu; r.appendChild(a); r.appendChild(b); body.appendChild(r); }
-      p.querySelector('.phBack').onclick=()=>{ if(tick)clearInterval(tick); menu(); };
-      tick=setInterval(()=>{ left--; const t=document.getElementById('wrT'); if(t)t.textContent=left+'s'; if(left<=0) end(); },1000);
-      next();
+      function fail(reason){ if(answered)return; answered=true; stopTick(); lives--;
+        body.innerHTML=`<div class="phBar"><span class="phNote">${score} goed · ${hearts()}</span><span class="phTimer">—</span></div><p class="phCenter" style="font-size:19px;color:#e05a52;font-weight:800">${reason}</p><p class="phCenter" style="font-size:22px;font-weight:800;color:var(--ink)">Het woord was:<br><span style="color:var(--lake);letter-spacing:2px">${esc(cur.toUpperCase())}</span></p>`;
+        const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px"></div>'); const nb=el('<button class="phBtn coral">'+(lives<=0?'Uitslag ›':'Volgende ›')+'</button>'); nb.onclick=(lives<=0?end:nextWord); r.appendChild(nb); body.appendChild(r);
+      }
+      function end(){ stopTick(); const pts=score*per; recordGame('woordrace',pts,{done:true,goed:score,level},`Woordrace ${level}: ${score} goed`);
+        body.innerHTML=`<div class="phCenter"><p class="phBig">Af! 💥</p><p class="phNote">Je had <b>${score}</b> woorden goed = <span class="phBest">${pts} punten</span>. Je beste ronde telt mee.</p></div>`;
+        const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px;flex-wrap:wrap"></div>'); const a=el('<button class="phBtn coral">Opnieuw 🔁</button>'); a.onclick=()=>round(level); const b=el('<button class="phBtn alt">Ander niveau</button>'); b.onclick=levelPick; const c=el('<button class="phBtn alt">Terug</button>'); c.onclick=menu; r.appendChild(a); r.appendChild(b); r.appendChild(c); body.appendChild(r);
+      }
+      p.querySelector('.phBack').onclick=()=>{ stopTick(); menu(); };
+      nextWord();
     }
     levelPick();
   }
