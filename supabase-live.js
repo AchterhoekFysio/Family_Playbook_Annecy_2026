@@ -24,18 +24,26 @@
     else showJoin();
   }
 
-  window.joinLiveGames = async function(){
+  window.joinLiveGames = async function(takeover){
     if(!configured){ setMessage('Supabase is nog niet gekoppeld. Volg SUPABASE_SETUP.md.'); return; }
     const name=$('livePlayerName')?.value.trim(); const code=$('liveGroupCode')?.value.replace(/\s+/g,'').toUpperCase();
     if(!name || !code){setMessage('Vul je naam en familiecode in.');return;}
     try{
-      setMessage('Bezig met deelnemen…',true); await ensureAuth();
-      const {data,error}=await state.client.rpc('join_game_group',{p_code:code,p_display_name:name});
+      setMessage(takeover?'Bezig met overnemen…':'Bezig met deelnemen…',true); await ensureAuth();
+      const {data,error}=await state.client.rpc('join_game_group',{p_code:code,p_display_name:name,p_takeover:!!takeover});
       if(error) throw error;
       const row=Array.isArray(data)?data[0]:data;
       state.player={id:row.player_id,display_name:row.display_name,score:row.score}; state.group={id:row.group_id,name:row.group_name,join_code:row.join_code};
       await activateLive();
-    }catch(err){console.error(err);setMessage(err.message && /Ongeldige|naam|aangemeld/.test(err.message) ? err.message : 'Deelnemen lukte niet. Controleer de code en de internetverbinding.');}
+    }catch(err){
+      console.error(err);
+      if(err.message && /in gebruik/.test(err.message)){
+        const e=$('liveMessage');
+        if(e){ e.className='liveStatus liveError';
+          e.innerHTML='Die naam is al actief op een ander apparaat.<br><button type="button" onclick="joinLiveGames(true)" style="margin-top:8px;background:#0f91a3;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-weight:800;cursor:pointer">Dit ben ik — overnemen op dit apparaat</button><div style="font-size:12px;color:#6b8794;margin-top:6px">Je punten en voortgang gaan mee. Het oude apparaat wordt uitgelogd.</div>';
+        }
+      } else setMessage(err.message && /Ongeldige|naam|aangemeld/.test(err.message) ? err.message : 'Deelnemen lukte niet. Controleer de code en de internetverbinding.');
+    }
   };
 
   window.leaveLiveGames = async function(){
@@ -116,7 +124,7 @@
   window.AnnecyPlayerGames=async function(pid){
     const p=state.players.find(x=>x.id===pid); if(!p||!state.client||!state.group)return;
     let rows=[]; try{ const {data}=await state.client.from('game_progress').select('game_key,state').eq('group_id',state.group.id).eq('player_id',pid); rows=data||[]; }catch(e){}
-    const LABELS={quiz:'🧠 Familiequiz',bingo:'🗺️ Vakantiebingo',yahtzee:'🎲 Yahtzee',music:'🎵 Hitster',speurtocht:'🔍 Speurtocht',woordrace:'🔤 Woordrace',snake:'🐍 Snake',patience:'🃏 Patience',top10:'⭐ Mijn top 10',favs:'❤️ Favorieten',vrijetijd:'🛋️ Vrije tijd'};
+    const LABELS={quiz:'🧠 Familiequiz',bingo:'🗺️ Vakantiebingo',yahtzee:'🎲 Yahtzee',music:'🎵 Hitster',speurtocht:'🔍 Speurtocht',woordrace:'🔤 Woordrace',snake:'🐍 Snake',patience:'🃏 Patience',memory:'🧠 Memory',tetris:'🟦 Tetris',top10:'⭐ Mijn top 10',favs:'❤️ Favorieten',vrijetijd:'🛋️ Vrije tijd'};
     const scored=rows.filter(r=>r.state && r.state.best!=null && Number(r.state.best)>0);
     const inner = scored.length ? scored.map(r=>'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef2f1"><span>'+(LABELS[r.game_key]||r.game_key)+'</span><b>'+Number(r.state.best)+'</b></div>').join('') : '<p class="small">Nog geen spellen met een score gespeeld.</p>';
     let ov=document.getElementById('pgOverlay'); if(ov) ov.remove();

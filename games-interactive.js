@@ -164,6 +164,8 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="woordrace"><span class="ic">🔤</span><span class="tt">Woordrace</span><span class="ds">Ontwar woorden tegen de klok · kids & volwassen.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="snake"><span class="ic">🐍</span><span class="tt">Snake</span><span class="ds">Klassieker · je beste score telt.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="patience"><span class="ic">🃏</span><span class="tt">Patience</span><span class="ds">Klassiek kaartspel · tik & leg · minste zetten telt.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="memory"><span class="ic">🧠</span><span class="tt">Memory</span><span class="ds">Vind de paren · kids & volwassen.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tetris"><span class="ic">🟦</span><span class="tt">Tetris</span><span class="ds">Blokken stapelen · swipe & draai · beste telt.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
     view.appendChild(m);
@@ -173,7 +175,7 @@
     const reset=el('<button class="phBtn alt" style="align-self:center;margin-top:2px">⟲ Reset spellen</button>');
     reset.onclick=resetPanel; view.appendChild(reset);
   }
-  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,reset:resetPanel}[g]||menu)(); }
+  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,memory,tetris,reset:resetPanel}[g]||menu)(); }
   try{ window.AnnecyOpenGame=function(g){ try{ open(g); }catch(e){ console.error(e); } }; }catch(e){}
   function panel(title,bodyNode){ view.innerHTML=''; const p=el(`<div class="phPanel"><div class="phBar"><button class="phBack">‹ Terug</button><h3>${title}</h3><span></span></div></div>`); p.querySelector('.phBack').onclick=menu; p.appendChild(bodyNode); view.appendChild(p); return p; }
   function joinGate(title){ const body=el('<div><p class="phNote">Doe eerst mee met de familiecode hierboven ⤴ om dit te gebruiken.</p></div>'); panel(title,body); return body; }
@@ -735,6 +737,102 @@
     }
     const p=panel('Patience 🃏',wrap); p.querySelector('.phBack').onclick=menu;
     deal();
+  }
+
+  /* ---------- MEMORY (kids + volwassen) ---------- */
+  function memory(){
+    if(!document.getElementById('memCss')){ const st=document.createElement('style'); st.id='memCss'; st.textContent=`
+      .memGrid{display:grid;gap:7px;margin:6px 0}
+      .memCard{aspect-ratio:1/1;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:min(9vw,34px);cursor:pointer;user-select:none;transition:transform .12s;background:linear-gradient(135deg,#2b7bb0,#1f6f8b);color:#fff;border:1px solid #1f6f8b}
+      .memCard.up{background:#fff;color:#0d3550;border:1px solid #cfdbd8;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+      .memCard.done{background:#eaf6ee;color:#2e9e5b;border:1px solid #bfe6cd;cursor:default}
+      .memCard.back::after{content:'❓';opacity:.85}
+    `; document.head.appendChild(st); }
+    const KID=['🏖️','☀️','🍦','⛵','🚲','🏔️','⛺','🐟','🦆','🌈'];
+    const ADULT=['🗻','🥐','🧀','🚡','🛶','🪂','🏰','🚠','🌄','⛲','🎡','🍇','🚣','🧭'];
+    const body=el('<div></div>');
+    const p=panel('Memory 🧠',body);
+    p.querySelector('.phBack').onclick=menu;
+    function pick(){ p.querySelector('.phBack').onclick=menu; body.innerHTML='<p class="phNote">Draai de kaarten om en vind de paren. Snel en met weinig beurten = meer punten. Kies je niveau:</p>'; const kid=kidsAllowed();
+      const k=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left'+(kid?'':';opacity:.55')+'"><span class="ic">'+(kid?'🧒':'🔒')+'</span><span class="tt">Kids'+(kid?'':' (op slot)')+'</span><span class="ds">'+(kid?'6 paren · grote plaatjes.':'Alleen voor Merle, Duuk en Linn.')+'</span></button>');
+      const v=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧑</span><span class="tt">Volwassen</span><span class="ds">8 paren · net wat pittiger.</span></button>');
+      k.onclick=()=>{ if(!kidsAllowed()){ kidsLockToast(); return; } start('kids'); }; v.onclick=()=>start('volw');
+      body.appendChild(k); body.appendChild(v);
+      if(!kid) body.appendChild(el('<p class="phNote phCenter" style="margin-top:6px">🔒 De <b>Kids</b>-variant is alleen voor Merle, Duuk en Linn. Speel je namens een kind? Kies bovenaan bij <b>“Wie speelt er nu”</b> hun naam.</p>'));
+    }
+    function start(level){
+      const nPairs=level==='kids'?6:8, cols=4;
+      const src=shuffle(level==='kids'?KID:ADULT).slice(0,nPairs);
+      let deck=shuffle(src.concat(src)).map((e,i)=>({e,id:i,matched:false,up:false}));
+      let first=null, lock=false, moves=0, matched=0, t0=Date.now(), tk=null;
+      body.innerHTML='';
+      const bar=el('<div class="phBar"><span class="phNote" id="memS">0/'+nPairs+' paren · 0 beurten</span><span class="phTimer" id="memT">0:00</span></div>'); body.appendChild(bar);
+      const grid=el('<div class="memGrid"></div>'); grid.style.gridTemplateColumns='repeat('+cols+',1fr)'; body.appendChild(grid);
+      const foot=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const nb=el('<button class="phBtn alt">🔁 Nieuw</button>'); nb.onclick=()=>{ stop(); pick(); }; foot.appendChild(nb); body.appendChild(foot);
+      function stop(){ if(tk){clearInterval(tk);tk=null;} }
+      tk=setInterval(()=>{ const s=Math.floor((Date.now()-t0)/1000); const t=document.getElementById('memT'); if(t)t.textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); },1000);
+      function upd(){ const s=document.getElementById('memS'); if(s)s.textContent=matched+'/'+nPairs+' paren · '+moves+' beurten'; }
+      function render(){ grid.innerHTML=''; deck.forEach(card=>{ const c=el('<div class="memCard '+(card.matched?'done':(card.up?'up':'back'))+'"></div>'); if(card.matched||card.up)c.textContent=card.e; c.onclick=()=>flip(card,c); grid.appendChild(c); }); }
+      function flip(card,c){ if(lock||card.matched||card.up)return; card.up=true; c.className='memCard up'; c.textContent=card.e;
+        if(!first){ first=card; return; }
+        moves++; upd();
+        if(first.e===card.e){ first.matched=card.matched=true; matched++; first=null; render(); upd(); if(matched===nPairs) win(); }
+        else { lock=true; const a=first; first=null; setTimeout(()=>{ a.up=false; card.up=false; render(); lock=false; },850); }
+      }
+      function win(){ stop(); const sec=Math.max(1,Math.floor((Date.now()-t0)/1000)); const score=Math.max(nPairs*10, Math.round(nPairs*130 - moves*6 - sec*2));
+        recordGame('memory', score, {done:true,level,moves,sec,pairs:nPairs}, 'Memory ('+level+'): '+matched+' paren in '+moves+' beurten');
+        const done=el('<p class="phCenter" style="font-size:19px;font-weight:800;color:var(--lake);margin-top:10px">🎉 Alle paren gevonden!<br><span style="color:var(--ink);font-size:15px">'+moves+' beurten · '+sec+'s · '+score+' punten</span></p>'); body.appendChild(done);
+      }
+      render(); upd();
+    }
+    pick();
+  }
+
+  /* ---------- TETRIS ---------- */
+  function tetris(){
+    const COLS=10, ROWS=18;
+    const COLORS=[null,'#00b4d8','#ffb703','#8338ec','#06d6a0','#ef476f','#4361ee','#fb8500'];
+    const SHAPES={I:[[1,1,1,1]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1]],S:[[0,1,1],[1,1,0]],Z:[[1,1,0],[0,1,1]],J:[[1,0,0],[1,1,1]],L:[[0,0,1],[1,1,1]]};
+    const KEYS=Object.keys(SHAPES), CIDX={I:1,O:2,T:3,S:4,Z:5,J:6,L:7};
+    let board, cur, gameOver, score, lines, level, dropMs, gi=null;
+    const body=el('<div></div>');
+    const p=panel('Tetris 🟦',body);
+    const bar=el('<div class="phBar"><span class="phNote" id="tScore">0 punten · 0 lijnen</span><span class="phTimer" id="tLvl">niv. 1</span></div>');
+    const cw=Math.max(14,Math.floor(Math.min((window.innerWidth||360)-40,300)/COLS));
+    const cv=el('<canvas></canvas>'); const DPR=window.devicePixelRatio||1; cv.width=cw*COLS*DPR; cv.height=cw*ROWS*DPR; cv.style.width=(cw*COLS)+'px'; cv.style.height=(cw*ROWS)+'px'; cv.style.display='block'; cv.style.margin='6px auto'; cv.style.borderRadius='10px'; cv.style.background='#0d2233'; cv.style.touchAction='none';
+    const ctx=cv.getContext('2d'); ctx.scale(DPR,DPR);
+    const ctrl=el('<div class="phBtnRow phCenter" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px"></div>');
+    const mk=(t)=>{ const b=el('<button class="phBtn alt" style="min-width:52px;font-size:20px;padding:10px 12px">'+t+'</button>'); return b; };
+    const bL=mk('◀'), bR=mk('▶'), bRot=mk('⟳'), bD=mk('▼'), bDrop=mk('⤓');
+    ctrl.appendChild(bL); ctrl.appendChild(bRot); ctrl.appendChild(bR); ctrl.appendChild(bD); ctrl.appendChild(bDrop);
+    body.appendChild(bar); body.appendChild(cv); body.appendChild(ctrl);
+    body.appendChild(el('<p class="phNote phCenter">Swipe ◀▶ om te schuiven, tik om te draaien, veeg omlaag voor snel vallen. Volle rijen = punten. Je beste score telt mee.</p>'));
+    function rot(m){ const R=m.length,C=m[0].length,n=[]; for(let c=0;c<C;c++){ n.push([]); for(let r=R-1;r>=0;r--) n[c].push(m[r][c]); } return n; }
+    function collide(m,r,c){ for(let i=0;i<m.length;i++)for(let j=0;j<m[i].length;j++){ if(m[i][j]){ const rr=r+i,cc=c+j; if(cc<0||cc>=COLS||rr>=ROWS)return true; if(rr>=0&&board[rr][cc])return true; } } return false; }
+    function spawn(){ const k=KEYS[Math.floor(Math.random()*KEYS.length)]; const m=SHAPES[k].map(row=>row.slice()); cur={m,cidx:CIDX[k],r:0,c:Math.floor((COLS-m[0].length)/2)}; if(collide(cur.m,cur.r,cur.c)){ gameOver=true; end(); } }
+    function merge(){ for(let i=0;i<cur.m.length;i++)for(let j=0;j<cur.m[i].length;j++){ if(cur.m[i][j]){ const rr=cur.r+i,cc=cur.c+j; if(rr>=0)board[rr][cc]=cur.cidx; } } }
+    function clearLines(){ let n=0; for(let r=ROWS-1;r>=0;r--){ if(board[r].every(x=>x)){ board.splice(r,1); board.unshift(new Array(COLS).fill(0)); n++; r++; } } if(n){ score+=[0,40,100,300,1200][n]*level; lines+=n; const nl=1+Math.floor(lines/10); if(nl!==level){ level=nl; dropMs=Math.max(120,600-level*45); resetTimer(); } } }
+    function move(d){ if(gameOver)return; if(!collide(cur.m,cur.r,cur.c+d)){ cur.c+=d; draw(); } }
+    function rotateCur(){ if(gameOver)return; const n=rot(cur.m); for(const k of [0,-1,1,-2,2]){ if(!collide(n,cur.r,cur.c+k)){ cur.m=n; cur.c+=k; draw(); return; } } }
+    function step(){ if(gameOver)return; if(!collide(cur.m,cur.r+1,cur.c)){ cur.r++; } else { merge(); clearLines(); if(!gameOver)spawn(); } draw(); }
+    function hardDrop(){ if(gameOver)return; while(!collide(cur.m,cur.r+1,cur.c))cur.r++; step(); }
+    function cell(r,c,ci){ const x=c*cw,y=r*cw; ctx.fillStyle=COLORS[ci]; ctx.beginPath(); const rad=3; ctx.roundRect?ctx.roundRect(x+1,y+1,cw-2,cw-2,rad):ctx.rect(x+1,y+1,cw-2,cw-2); ctx.fill(); ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(x+1,y+1,cw-2,3); }
+    function draw(){ ctx.clearRect(0,0,cw*COLS,cw*ROWS); ctx.fillStyle='#0d2233'; ctx.fillRect(0,0,cw*COLS,cw*ROWS); for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){ if(board[r][c])cell(r,c,board[r][c]); } if(cur&&!gameOver){ for(let i=0;i<cur.m.length;i++)for(let j=0;j<cur.m[i].length;j++){ if(cur.m[i][j]){ const rr=cur.r+i; if(rr>=0)cell(rr,cur.c+j,cur.cidx); } } } const s=document.getElementById('tScore'); if(s)s.textContent=score+' punten · '+lines+' lijnen'; const l=document.getElementById('tLvl'); if(l)l.textContent='niv. '+level; }
+    function resetTimer(){ if(gi)clearInterval(gi); gi=setInterval(step,dropMs); }
+    function end(){ if(gi){clearInterval(gi);gi=null;} draw(); recordGame('tetris',score,{done:true,lines,level},'Tetris: '+score+' punten'); const ov=el('<p class="phCenter tEnd" style="font-size:19px;font-weight:800;color:#e05a52;margin-top:8px">Game over!<br><span style="color:var(--ink);font-size:15px">'+score+' punten · '+lines+' lijnen</span></p>'); const rb=el('<div class="phBtnRow phCenter tEnd" style="justify-content:center;margin-top:6px"><button class="phBtn coral">Opnieuw ›</button></div>'); rb.querySelector('button').onclick=start; body.appendChild(ov); body.appendChild(rb); }
+    const keyh=(e)=>{ if(e.key==='ArrowLeft'){move(-1);e.preventDefault();} else if(e.key==='ArrowRight'){move(1);e.preventDefault();} else if(e.key==='ArrowUp'){rotateCur();e.preventDefault();} else if(e.key==='ArrowDown'){step();e.preventDefault();} else if(e.key===' '){hardDrop();e.preventDefault();} };
+    bL.onclick=()=>move(-1); bR.onclick=()=>move(1); bRot.onclick=rotateCur; bD.onclick=step; bDrop.onclick=hardDrop;
+    let sx,sy,moved;
+    cv.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; moved=false; },{passive:true});
+    cv.addEventListener('touchmove',e=>{ e.preventDefault(); const t=e.touches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>22){ move(dx>0?1:-1); sx=t.clientX; sy=t.clientY; moved=true; } else if(dy>26){ step(); sy=t.clientY; sx=t.clientX; moved=true; } },{passive:false});
+    cv.addEventListener('touchend',()=>{ if(!moved)rotateCur(); });
+    document.addEventListener('keydown',keyh);
+    p.querySelector('.phBack').onclick=()=>{ if(gi){clearInterval(gi);gi=null;} document.removeEventListener('keydown',keyh); menu(); };
+    function start(){ board=Array.from({length:ROWS},()=>new Array(COLS).fill(0)); score=0; lines=0; level=1; dropMs=600; gameOver=false;
+      body.querySelectorAll('.tEnd').forEach(n=>n.remove());
+      spawn(); draw(); resetTimer();
+    }
+    start();
   }
 
   /* ---------- RESET ---------- */
