@@ -798,8 +798,9 @@
     const body=el('<div></div>');
     const p=panel('Tetris 🟦',body);
     const bar=el('<div class="phBar"><span class="phNote" id="tScore">0 punten · 0 lijnen</span><span class="phTimer" id="tLvl">niv. 1</span></div>');
-    const cw=Math.max(14,Math.floor(Math.min((window.innerWidth||360)-40,300)/COLS));
-    const cv=el('<canvas></canvas>'); const DPR=window.devicePixelRatio||1; cv.width=cw*COLS*DPR; cv.height=cw*ROWS*DPR; cv.style.width=(cw*COLS)+'px'; cv.style.height=(cw*ROWS)+'px'; cv.style.display='block'; cv.style.margin='6px auto'; cv.style.borderRadius='10px'; cv.style.background='#0d2233'; cv.style.touchAction='none';
+    const availW=Math.min((window.innerWidth||360)-40,300), availH=(window.innerHeight||640)-270;
+    const cw=Math.max(12,Math.min(Math.floor(availW/COLS),Math.floor(availH/ROWS)));
+    const cv=el('<canvas></canvas>'); const DPR=window.devicePixelRatio||1; cv.width=cw*COLS*DPR; cv.height=cw*ROWS*DPR; cv.style.width=(cw*COLS)+'px'; cv.style.height=(cw*ROWS)+'px'; cv.style.display='block'; cv.style.margin='6px auto'; cv.style.borderRadius='10px'; cv.style.background='#0d2233'; cv.style.touchAction='none'; cv.style.overscrollBehavior='none'; cv.style.webkitUserSelect='none'; cv.style.userSelect='none';
     const ctx=cv.getContext('2d'); ctx.scale(DPR,DPR);
     const ctrl=el('<div class="phBtnRow phCenter" style="justify-content:center;gap:6px;flex-wrap:wrap;margin-top:6px"></div>');
     const mk=(t)=>{ const b=el('<button class="phBtn alt" style="min-width:52px;font-size:20px;padding:10px 12px">'+t+'</button>'); return b; };
@@ -823,9 +824,9 @@
     const keyh=(e)=>{ if(e.key==='ArrowLeft'){move(-1);e.preventDefault();} else if(e.key==='ArrowRight'){move(1);e.preventDefault();} else if(e.key==='ArrowUp'){rotateCur();e.preventDefault();} else if(e.key==='ArrowDown'){step();e.preventDefault();} else if(e.key===' '){hardDrop();e.preventDefault();} };
     bL.onclick=()=>move(-1); bR.onclick=()=>move(1); bRot.onclick=rotateCur; bD.onclick=step; bDrop.onclick=hardDrop;
     let sx,sy,moved;
-    cv.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; moved=false; },{passive:true});
+    cv.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; sx=t.clientX; sy=t.clientY; moved=false; },{passive:false});
     cv.addEventListener('touchmove',e=>{ e.preventDefault(); const t=e.touches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>22){ move(dx>0?1:-1); sx=t.clientX; sy=t.clientY; moved=true; } else if(dy>26){ step(); sy=t.clientY; sx=t.clientX; moved=true; } },{passive:false});
-    cv.addEventListener('touchend',()=>{ if(!moved)rotateCur(); });
+    cv.addEventListener('touchend',e=>{ e.preventDefault(); if(!moved)rotateCur(); },{passive:false});
     document.addEventListener('keydown',keyh);
     p.querySelector('.phBack').onclick=()=>{ if(gi){clearInterval(gi);gi=null;} document.removeEventListener('keydown',keyh); menu(); };
     function start(){ board=Array.from({length:ROWS},()=>new Array(COLS).fill(0)); score=0; lines=0; level=1; dropMs=600; gameOver=false;
