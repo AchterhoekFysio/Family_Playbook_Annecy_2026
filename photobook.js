@@ -391,6 +391,22 @@
     if(CP[shape]) return 'clip-path:'+CP[shape]+';border-radius:0';
     return 'border-radius:12px';
   }
+  const STICKERS=['🌤️','☀️','⛰️','🏖️','🌊','🚗','🚵','🥾','🏊','⛵','🎈','🎉','❤️','⭐','🌸','🍦','📸','🗺️','😎','🏕️'];
+  const DECOS=[['cloud','Wolk'],['sun','Zon'],['heart','Hart'],['star','Ster'],['balloon','Ballon'],['banner','Lint'],['arrow','Pijl']];
+  function decoSvg(kind,color){
+    const c=color||'#ff6f68';
+    const S={
+      cloud:'<path d="M24 74c-12 0-22-9-22-21S12 32 24 32c3-11 12-19 24-19 14 0 25 11 25 25v1c11 0 20 8 20 19s-9 19-20 19H24z" fill="'+c+'"/>',
+      sun:'<circle cx="50" cy="50" r="22" fill="'+c+'"/>'+[0,1,2,3,4,5,6,7].map(i=>{const a=i*45*Math.PI/180,x1=50+28*Math.cos(a),y1=50+28*Math.sin(a),x2=50+42*Math.cos(a),y2=50+42*Math.sin(a);return '<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" stroke="'+c+'" stroke-width="6" stroke-linecap="round"/>';}).join(''),
+      heart:'<path d="M50 86C22 63 8 49 8 32 8 20 18 10 30 10c8 0 15 4 20 12 5-8 12-12 20-12 12 0 22 10 22 22 0 17-14 31-42 54z" fill="'+c+'"/>',
+      star:'<polygon points="50,6 61,38 96,38 68,59 79,92 50,72 21,92 32,59 4,38 39,38" fill="'+c+'"/>',
+      balloon:'<ellipse cx="50" cy="36" rx="26" ry="32" fill="'+c+'"/><path d="M50 68 l-5 9 h10 z" fill="'+c+'"/><line x1="50" y1="77" x2="50" y2="97" stroke="'+c+'" stroke-width="2"/>',
+      banner:'<path d="M6 28 h88 l-12 16 12 16 H6 z" fill="'+c+'"/>',
+      arrow:'<path d="M6 42 h58 v-16 l30 24 -30 24 v-16 H6 z" fill="'+c+'"/>'
+    };
+    return '<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible">'+(S[kind]||S.heart)+'</svg>';
+  }
+  function stickerSvg(emoji){ return '<svg viewBox="0 0 100 100" width="100%" height="100%" style="display:block"><text x="50" y="80" font-size="86" text-anchor="middle">'+esc(emoji||'⭐')+'</text></svg>'; }
   function ensurePages(){ if(!Array.isArray(cfg.pages)) cfg.pages=[]; if(!cfg.pages.length) cfg.pages=[{bg:'paper',items:[]}]; if(desPage>=cfg.pages.length) desPage=cfg.pages.length-1; if(desPage<0) desPage=0; }
   function uid(){ return 'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
   function applyBgDom(elm,page){ if(page.bgPhoto){ const p=photos.find(x=>x.id===page.bgPhoto); if(p){ elm.style.background='#dfe6e4'; elm.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,1200))+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none">')); return; } } elm.style.background=bgCss(page.bg); }
@@ -468,7 +484,16 @@
 
     const addbar=el('<div class="dsBar"></div>');
     const at=el('<button class="pbMini">➕ Tekstvak</button>'); at.onclick=()=>{ pushUndo(); page.items.push({t:'text',id:uid(),text:'Typ hier…',x:12,y:12,w:62,h:16,font:"'Playfair Display',serif",size:6,color:'#0d3550',align:'left',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); };
-    addbar.appendChild(at); addbar.appendChild(el('<span class="pbNote" style="margin:0">Sleep de foto (of ⠿ bij tekst) · hoekje óf 2 vingers (pinch) = vergroten · 🗑 of Delete-toets = verwijderen · tik in tekst om te typen</span>')); wrap.appendChild(addbar);
+    const pw=el('<button class="pbMini">💬 Praatwolk</button>'); pw.onclick=()=>{ pushUndo(); page.items.push({t:'text',id:uid(),bubble:true,text:'…',x:12,y:12,w:52,h:16,font:"'Caveat',cursive",size:8,color:'#0d3550',align:'center',z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; addbar.appendChild(at); addbar.appendChild(pw);
+    addbar.appendChild(el('<span class="pbNote" style="margin:0">Sleep · hoekje/2 vingers = vergroten · 🗑/Delete = weg · tik in tekst om te typen</span>')); wrap.appendChild(addbar);
+    wrap.appendChild(el('<p class="pbNote" style="margin:8px 0 2px">Versiersels (kleur kies je na selectie):</p>'));
+    const decos=el('<div class="dsBar"></div>');
+    DECOS.forEach(d=>{ const b=el('<button class="pbMini" style="width:42px;height:36px;padding:3px">'+decoSvg(d[0],'#ff6f68')+'</button>'); b.title=d[1]; b.onclick=()=>{ pushUndo(); page.items.push({t:'deco',id:uid(),kind:d[0],color:'#ff6f68',x:20,y:20,w:26,h:26,z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; decos.appendChild(b); });
+    wrap.appendChild(decos);
+    wrap.appendChild(el('<p class="pbNote" style="margin:8px 0 2px">Stickers (icoontjes):</p>'));
+    const stks=el('<div class="dsBar" style="max-height:80px;overflow-y:auto"></div>');
+    STICKERS.forEach(em=>{ const b=el('<button class="pbMini" style="font-size:20px;width:38px;height:36px;padding:0">'+em+'</button>'); b.onclick=()=>{ pushUndo(); page.items.push({t:'sticker',id:uid(),emoji:em,x:22,y:22,w:16,h:16,z:page.items.length+1}); desSel=page.items[page.items.length-1].id; scheduleSave(); render(); }; stks.appendChild(b); });
+    wrap.appendChild(stks);
 
     const cw=el('<div class="dsCanvasWrap"></div>');
     const canvas=el('<div class="dsCanvas" id="dsCanvas" style="aspect-ratio:'+ar+'"></div>');
@@ -497,12 +522,15 @@
   function renderItem(it,page){
     const node=el('<div class="dsItem'+(desSel===it.id?' sel':'')+'" style="left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
     if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=el('<img loading="lazy" decoding="async" src="'+(p?esc(thumb(p.url,1000)):'')+'">'); img.style.cssText=shapeStyleStr(it.shape); node.appendChild(img); attachGesture(node,node,it,{drag:true,pinch:true}); }
+    else if(it.t==='deco'){ node.innerHTML=decoSvg(it.kind,it.color); attachGesture(node,node,it,{drag:true,pinch:true}); }
+    else if(it.t==='sticker'){ node.innerHTML=stickerSvg(it.emoji); attachGesture(node,node,it,{drag:true,pinch:true}); }
     else {
       const handle=el('<div class="dsHandle">⠿ sleep</div>');
-      const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left'); tx.textContent=it.text||'';
+      const tx=el('<div class="dsText" contenteditable="true"></div>'); tx.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left')+(it.bubble?';background:#fff;border:2px solid #d5e0dd;border-radius:16px;padding:8px 11px;box-sizing:border-box;display:flex;align-items:center':''); tx.textContent=it.text||'';
       tx.addEventListener('focus',()=>{ desSel=it.id; });
       tx.addEventListener('blur',()=>{ it.text=tx.textContent; scheduleSave(); });
       node.appendChild(handle); node.appendChild(tx);
+      if(it.bubble){ node.appendChild(el('<div style="position:absolute;left:18px;bottom:-9px;width:16px;height:16px;background:#fff;border-right:2px solid #d5e0dd;border-bottom:2px solid #d5e0dd;transform:rotate(45deg)"></div>')); }
       attachGesture(handle,node,it,{drag:true,pinch:false});
       attachGesture(node,node,it,{drag:false,pinch:true});
     }
@@ -546,10 +574,14 @@
   }
   function itemToolbar(it,page){
     const box=el('<div class="pbEdit"></div>');
-    box.appendChild(el('<p style="font-weight:800;margin:0 0 6px">Geselecteerd: '+(it.t==='photo'?'foto':'tekst')+'</p>'));
+    box.appendChild(el('<p style="font-weight:800;margin:0 0 6px">Geselecteerd: '+({photo:'foto',deco:'versiersel',sticker:'sticker',text:'tekst'}[it.t]||'item')+'</p>'));
     const row=el('<div class="pbMiniRow"></div>');
     if(it.t==='photo'){
       SHAPES.forEach(sh=>{ const b=el('<button class="pbMini'+(it.shape===sh[0]?' on':'')+'">'+sh[1]+'</button>'); b.onclick=()=>{ it.shape=sh[0]; scheduleSave(); render(); }; row.appendChild(b); });
+    } else if(it.t==='deco'){
+      ['#ff6f68','#0f91a3','#0d3550','#e75a7c','#f4b400','#37b26b','#ffffff'].forEach(c=>{ const b=el('<button class="pbMini" style="width:28px;height:28px;padding:0;background:'+c+';border:1px solid #d5e0dd"></button>'); b.onclick=()=>{ it.color=c; scheduleSave(); render(); }; row.appendChild(b); });
+    } else if(it.t==='sticker'){
+      row.appendChild(el('<span class="pbNote" style="margin:0">Sleep om te verplaatsen · hoekje of pinch = groter/kleiner</span>'));
     } else {
       const fs=el('<select class="pbMini"></select>'); FONTS.forEach(f=>{ const o=document.createElement('option'); o.value=f[0]; o.textContent=f[1]; if(it.font===f[0])o.selected=true; fs.appendChild(o); }); fs.onchange=()=>{ it.font=fs.value; scheduleSave(); render(); }; row.appendChild(fs);
       const mn=el('<button class="pbMini">A−</button>'); mn.onclick=()=>{ it.size=Math.max(2,(it.size||6)-1); scheduleSave(); render(); }; row.appendChild(mn);
@@ -582,7 +614,9 @@
         for(let k=0;k<(page.items||[]).length;k++){
           const it=page.items[k]; const n=document.createElement('div'); n.style.cssText='position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0);
           if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); const img=new Image(); img.crossOrigin='anonymous'; img.style.cssText='width:100%;height:100%;object-fit:cover;'+shapeStyleStr(it.shape); const pr=new Promise(r=>{ img.onload=r; img.onerror=r; }); img.src=p?p.url:''; await pr; n.appendChild(img); }
-          else { const t=document.createElement('div'); t.textContent=it.text||''; t.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+(it.size*W/100)+'px;color:'+it.color+';text-align:'+(it.align||'left')+';padding:4px 6px;overflow:hidden;line-height:1.15'; n.appendChild(t); }
+          else if(it.t==='deco'){ n.style.overflow='visible'; n.innerHTML=decoSvg(it.kind,it.color); }
+          else if(it.t==='sticker'){ n.innerHTML=stickerSvg(it.emoji); }
+          else { const t=document.createElement('div'); t.textContent=it.text||''; t.style.cssText='width:100%;height:100%;font-family:'+it.font+';font-size:'+(it.size*W/100)+'px;color:'+it.color+';text-align:'+(it.align||'left')+';padding:'+Math.round(W*0.006)+'px '+Math.round(W*0.008)+'px;overflow:hidden;line-height:1.15'+(it.bubble?';background:#fff;border:2px solid #d5e0dd;border-radius:'+Math.round(W*0.014)+'px;box-sizing:border-box;display:flex;align-items:center':''); n.appendChild(t); if(it.bubble){ const ts=Math.round(W*0.016); const tl=document.createElement('div'); tl.style.cssText='position:absolute;left:'+Math.round(W*0.018)+'px;bottom:-'+Math.round(ts/2)+'px;width:'+ts+'px;height:'+ts+'px;background:#fff;border-right:2px solid #d5e0dd;border-bottom:2px solid #d5e0dd;transform:rotate(45deg)'; n.appendChild(tl); } }
           cv.appendChild(n);
         }
         const canvas=await window.html2canvas(cv,{useCORS:true,scale:2,backgroundColor:null,logging:false});
@@ -614,7 +648,9 @@
         (page.items||[]).slice().sort((a,b)=>(a.z||0)-(b.z||0)).forEach(it=>{
           const n=el('<div style="position:absolute;left:'+it.x+'%;top:'+it.y+'%;width:'+it.w+'%;height:'+it.h+'%;z-index:'+(it.z||0)+'"></div>');
           if(it.t==='photo'){ const p=photos.find(x=>x.id===it.photo); n.innerHTML='<img loading="lazy" src="'+(p?esc(thumb(p.url,1000)):'')+'" style="width:100%;height:100%;object-fit:cover;'+shapeStyleStr(it.shape)+'">'; }
-          else { const t=el('<div style="width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left')+';padding:4px 6px;overflow:hidden;line-height:1.15"></div>'); t.textContent=it.text||''; n.appendChild(t); }
+          else if(it.t==='deco'){ n.style.overflow='visible'; n.innerHTML=decoSvg(it.kind,it.color); }
+          else if(it.t==='sticker'){ n.innerHTML=stickerSvg(it.emoji); }
+          else { const t=el('<div style="width:100%;height:100%;font-family:'+it.font+';font-size:'+it.size+'cqw;color:'+it.color+';text-align:'+(it.align||'left')+';padding:4px 6px;overflow:hidden;line-height:1.15'+(it.bubble?';background:#fff;border:2px solid #d5e0dd;border-radius:16px;box-sizing:border-box;display:flex;align-items:center':'')+'"></div>'); t.textContent=it.text||''; n.appendChild(t); if(it.bubble){ n.appendChild(el('<div style="position:absolute;left:18px;bottom:-9px;width:16px;height:16px;background:#fff;border-right:2px solid #d5e0dd;border-bottom:2px solid #d5e0dd;transform:rotate(45deg)"></div>')); } }
           pg.appendChild(n);
         });
         pg.appendChild(el('<span style="position:absolute;bottom:4px;right:8px;font-size:10px;color:#9fb3c2">'+(idx+1)+'</span>'));
