@@ -159,8 +159,9 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="music"><span class="ic">🎵</span><span class="tt">Hitster — muziek</span><span class="ds">Raad het jaar · zelf of samen.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="speur"><span class="ic">🔍</span><span class="tt">Speurtocht</span><span class="ds">Kids & volwassenen · rond de camping.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="live"><span class="ic">🎬</span><span class="tt">Samen live</span><span class="ds">Quizshow: iedereen tegelijk, met afteltimer. Eén host.</span></button>
-      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="top10"><span class="ic">⭐</span><span class="tt">Mijn top 10</span><span class="ds">Jouw wensen — zichtbaar voor de familie.</span></button>
-      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="vrijetijd"><span class="ic">🏖️</span><span class="tt">Vrije tijd</span><span class="ds">Wat wil jij doen bij de camping?</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="woordrace"><span class="ic">🔤</span><span class="tt">Woordrace</span><span class="ds">Ontwar woorden tegen de klok · kids & volwassen.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tijdbom"><span class="ic">💣</span><span class="tt">Tijdbom</span><span class="ds">Party met 1 telefoon · geef door!</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="snake"><span class="ic">🐍</span><span class="tt">Snake</span><span class="ds">Klassieker · je beste score telt.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
     view.appendChild(m);
@@ -170,7 +171,7 @@
     const reset=el('<button class="phBtn alt" style="align-self:center;margin-top:2px">⟲ Reset spellen</button>');
     reset.onclick=resetPanel; view.appendChild(reset);
   }
-  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,reset:resetPanel}[g]||menu)(); }
+  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,reset:resetPanel}[g]||menu)(); }
   try{ window.AnnecyOpenGame=function(g){ try{ open(g); }catch(e){ console.error(e); } }; }catch(e){}
   function panel(title,bodyNode){ view.innerHTML=''; const p=el(`<div class="phPanel"><div class="phBar"><button class="phBack">‹ Terug</button><h3>${title}</h3><span></span></div></div>`); p.querySelector('.phBack').onclick=menu; p.appendChild(bodyNode); view.appendChild(p); return p; }
   function joinGate(title){ const body=el('<div><p class="phNote">Doe eerst mee met de familiecode hierboven ⤴ om dit te gebruiken.</p></div>'); panel(title,body); return body; }
@@ -583,6 +584,82 @@
       const reset=el('<button class="phBtn alt" style="margin-top:8px">Speurtocht leegmaken</button>'); reset.onclick=()=>{ s.done=[]; LS.set('ph_speur',s); render(); toast('Leeg — je beste blijft staan'); }; body.appendChild(reset);
     }
     render(); panel('Speurtocht 🔍',body);
+  }
+
+  /* ---------- TIJDBOM (party, 1 telefoon) ---------- */
+  function tijdbom(){
+    const CATS=['een Frans gerecht','een dier','iets dat je meeneemt op vakantie','een woord met een A','iets blauws','een land in Europa','een merk auto','iets dat je bij het meer doet','een Franse stad','een ijssmaak','een sport','iets in de tent of camper','een fruitsoort','een jongensnaam','een meisjesnaam','iets dat kan zwemmen','een kleur','iets in de supermarkt','een filmtitel','iets dat vliegt','een beroep','een drankje','iets op het strand','een berg of meer','iets met wielen','een woord van 5 letters'];
+    let timer=null,pulse=null,cat='';
+    const body=el('<div></div>');
+    function cleanup(){ if(timer){clearTimeout(timer);timer=null;} if(pulse){clearInterval(pulse);pulse=null;} }
+    function intro(){ cleanup(); body.innerHTML=''; body.appendChild(el(`<p class="phNote phCenter">Party-spel met één telefoon. Kies "Start": de app geeft een categorie en een <b>verborgen</b> afteltimer. Noem om de beurt iets en geef de telefoon door — wie 'm vasthoudt als de bom afgaat, verliest. Geen punten, puur lol.</p>`)); const r=el(`<div class="phBtnRow phCenter" style="justify-content:center"></div>`); const b=el(`<button class="phBtn coral">▶ Start de bom</button>`); b.onclick=start; r.appendChild(b); body.appendChild(r); }
+    function start(){ cleanup(); cat=CATS[Math.floor(Math.random()*CATS.length)]; body.innerHTML=`<p class="phNote phCenter">Noem om de beurt iets uit de categorie en <b>geef de telefoon door</b>. Wie 'm vasthoudt als de bom afgaat, is af! 😄</p><p class="phCenter" style="font-size:56px;margin:12px 0"><span id="tbBomb" style="display:inline-block">💣</span></p><p class="phCenter" style="font-size:21px;font-weight:800;color:var(--ink)">${esc(cat)}</p><p class="phNote phCenter">De bom loopt… ⏳</p>`; const bomb=body.querySelector('#tbBomb'); let s=1,d=1; pulse=setInterval(()=>{ s+=d*0.05; if(s>=1.35)d=-1; if(s<=1)d=1; if(bomb)bomb.style.transform='scale('+s.toFixed(2)+')'; },80); timer=setTimeout(boom, 6000+Math.floor(Math.random()*17000)); }
+    function boom(){ cleanup(); body.innerHTML=`<p class="phCenter" style="font-size:56px;margin:10px 0">💥</p><p class="phCenter" style="font-size:22px;font-weight:800;color:var(--coral)">BOEM!</p><p class="phNote phCenter">Wie de telefoon vasthoudt is af.<br>Categorie was: <b>${esc(cat)}</b></p>`; const r=el(`<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px"></div>`); const a=el(`<button class="phBtn coral">🔁 Nieuwe ronde</button>`); a.onclick=start; r.appendChild(a); body.appendChild(r); }
+    const p=panel('Tijdbom 💣',body); p.querySelector('.phBack').onclick=()=>{ cleanup(); menu(); }; intro();
+  }
+
+  /* ---------- WOORDRACE / ANAGRAM (individueel) ---------- */
+  function woordrace(){
+    const KIDS=['strand','zon','ijs','boot','fiets','meer','berg','tent','vis','bal','kamp','auto','water','zand','hoed','bril','eend','kaas','stok','wolk','regen','ster','maan','vlag','slak'];
+    const VOLW=['vakantie','avontuur','zonnebrand','wandeling','croissant','baguette','fromage','bonjour','plage','soleil','fietstocht','picknick','waterval','uitzicht','kampvuur','bergmeer','zwemvest','zonsondergang','ansichtkaart','ijssalon','kajakken','marmot','meander','panorama'];
+    const body=el('<div></div>');
+    const p=panel('Woordrace 🔤',body);
+    function scramble(w){ const a=w.split(''); let s; do{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=a[i]; a[i]=a[j]; a[j]=t; } s=a.join(''); }while(s===w && w.length>1); return s; }
+    function levelPick(){ p.querySelector('.phBack').onclick=menu; body.innerHTML='<p class="phNote">Ontwar zoveel mogelijk woorden binnen 60 seconden. Kies je niveau:</p>'; const k=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧒</span><span class="tt">Kids</span><span class="ds">Korte, makkelijke woorden · elk goed = 12 punten (extra!).</span></button>'); const v=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧑</span><span class="tt">Volwassen</span><span class="ds">Langere & Franse woorden · elk goed = 10 punten.</span></button>'); k.onclick=()=>round('kids'); v.onclick=()=>round('volw'); body.appendChild(k); body.appendChild(v); }
+    function round(level){
+      let pool=shuffle(level==='kids'?KIDS:VOLW), idx=0, correct=0, cur='', left=60, tick=null;
+      const per=level==='kids'?12:10;
+      function next(){ if(idx>=pool.length){ pool=pool.concat(shuffle(level==='kids'?KIDS:VOLW)); } cur=pool[idx++]; draw(); }
+      function draw(){
+        body.innerHTML=`<div class="phBar"><span class="phNote">${correct} goed</span><span class="phTimer" id="wrT">${left}s</span></div><p class="phQ phCenter" style="letter-spacing:5px;font-size:28px">${esc(scramble(cur).toUpperCase())}</p>`;
+        const inp=el('<input placeholder="Jouw woord…" autocomplete="off" autocapitalize="none" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-size:16px">');
+        const row=el('<div class="phBtnRow" style="margin-top:8px"></div>');
+        const ok=el('<button class="phBtn coral" style="flex:1">Check</button>'); const sk=el('<button class="phBtn alt">Overslaan ›</button>');
+        const check=()=>{ if(inp.value.trim().toLowerCase()===cur){ correct++; toast('Goed! ✓'); next(); } else { inp.style.borderColor='#e05a52'; toast('Nog niet…'); } };
+        ok.onclick=check; sk.onclick=next; inp.onkeydown=(e)=>{ if(e.key==='Enter') check(); };
+        row.appendChild(ok); row.appendChild(sk); body.appendChild(inp); body.appendChild(row);
+        body.appendChild(el('<p class="phNote phCenter" style="margin-top:8px">Tip: het is een vakantiewoord.</p>'));
+        setTimeout(()=>inp.focus(),40);
+      }
+      function end(){ if(tick){clearInterval(tick);tick=null;} const pts=correct*per; recordGame('woordrace',pts,{done:true,goed:correct,level},`Woordrace ${level}: ${correct} goed`); body.innerHTML=`<div class="phCenter"><p class="phBig">${correct} woorden! 🎉</p><p class="phNote">Deze ronde = <span class="phBest">${pts} punten</span>. Je beste ronde telt mee.</p></div>`; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px"></div>'); const a=el('<button class="phBtn coral">Nog een ronde 🔁</button>'); a.onclick=levelPick; const b=el('<button class="phBtn alt">Terug</button>'); b.onclick=menu; r.appendChild(a); r.appendChild(b); body.appendChild(r); }
+      p.querySelector('.phBack').onclick=()=>{ if(tick)clearInterval(tick); menu(); };
+      tick=setInterval(()=>{ left--; const t=document.getElementById('wrT'); if(t)t.textContent=left+'s'; if(left<=0) end(); },1000);
+      next();
+    }
+    levelPick();
+  }
+
+  /* ---------- SNAKE (individueel) ---------- */
+  function snake(){
+    const body=el('<div></div>');
+    const N=15, CELL=Math.max(16,Math.min(20,Math.floor(Math.min((window.innerWidth||360)-46,360)/N))), SZ=N*CELL;
+    let arr,dir,nextDir,food,loop=null,score=0,over=false,speed=150;
+    const cv=el('<canvas width="'+SZ+'" height="'+SZ+'" style="background:#0f2233;border-radius:12px;touch-action:none;max-width:100%"></canvas>');
+    const ctx=cv.getContext('2d');
+    const info=el('<p class="phNote phCenter" id="snScore">Score: 0</p>');
+    function place(){ let ok=false; while(!ok){ food={x:Math.floor(Math.random()*N),y:Math.floor(Math.random()*N)}; ok=!arr.some(s=>s.x===food.x&&s.y===food.y); } }
+    function reset(){ arr=[{x:7,y:7},{x:6,y:7},{x:5,y:7}]; dir={x:1,y:0}; nextDir=dir; score=0; over=false; speed=150; const e=document.getElementById('snScore'); if(e)e.textContent='Score: 0'; place(); draw(); }
+    function draw(){ ctx.clearRect(0,0,SZ,SZ); ctx.fillStyle='#ff6f68'; ctx.fillRect(food.x*CELL+2,food.y*CELL+2,CELL-4,CELL-4); arr.forEach((s,i)=>{ ctx.fillStyle=i===0?'#2fe08a':'#37b26b'; ctx.fillRect(s.x*CELL+1,s.y*CELL+1,CELL-2,CELL-2); }); }
+    function loopFn(){ if(loop)clearInterval(loop); loop=setInterval(step,speed); }
+    function step(){ if(over)return; dir=nextDir; const h={x:arr[0].x+dir.x,y:arr[0].y+dir.y}; if(h.x<0||h.y<0||h.x>=N||h.y>=N||arr.some(s=>s.x===h.x&&s.y===h.y)){ gameOver(); return; } arr.unshift(h); if(h.x===food.x&&h.y===food.y){ score++; const e=document.getElementById('snScore'); if(e)e.textContent='Score: '+score; place(); if(speed>70){speed-=4;loopFn();} } else { arr.pop(); } draw(); }
+    function start(){ reset(); loopFn(); }
+    function stop(){ if(loop){clearInterval(loop);loop=null;} }
+    function gameOver(){ over=true; stop(); recordGame('snake',score,{done:score>0,score},'Snake: '+score); info.innerHTML='Game over — score: <b>'+score+'</b> · je beste telt mee. Tik "Start / Opnieuw".'; }
+    function setDir(x,y){ if(dir.x===-x&&dir.y===-y)return; nextDir={x:x,y:y}; }
+    let sx=0,sy=0; cv.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; },{passive:true}); cv.addEventListener('touchend',e=>{ const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)<8&&Math.abs(dy)<8)return; if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1); });
+    const keyh=(e)=>{ const k=e.key; if(k==='ArrowUp')setDir(0,-1); else if(k==='ArrowDown')setDir(0,1); else if(k==='ArrowLeft')setDir(-1,0); else if(k==='ArrowRight')setDir(1,0); };
+    document.addEventListener('keydown',keyh);
+    body.appendChild(el('<p class="phNote phCenter">Eet de rode blokjes. Veeg over het speelveld (of gebruik de pijltjes) om te sturen. Botsen = einde. Je beste score telt mee.</p>'));
+    const wrap=el('<div class="phCenter"></div>'); wrap.appendChild(cv); body.appendChild(wrap); body.appendChild(info);
+    const mk=(t,x,y)=>{ const b=el('<button class="phBtn alt" style="width:54px;height:46px;margin:3px;font-size:18px">'+t+'</button>'); b.onclick=()=>setDir(x,y); return b; };
+    const pad=el('<div class="phCenter" style="margin-top:8px;user-select:none"></div>');
+    const r1=el('<div class="phCenter"></div>'); r1.appendChild(mk('▲',0,-1));
+    const r2=el('<div class="phCenter"></div>'); r2.appendChild(mk('◀',-1,0)); r2.appendChild(mk('▶',1,0));
+    const r3=el('<div class="phCenter"></div>'); r3.appendChild(mk('▼',0,1));
+    pad.appendChild(r1); pad.appendChild(r2); pad.appendChild(r3); body.appendChild(pad);
+    const ctr=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const sb=el('<button class="phBtn coral">Start / Opnieuw</button>'); sb.onclick=start; ctr.appendChild(sb); body.appendChild(ctr);
+    const p=panel('Snake 🐍',body); p.querySelector('.phBack').onclick=()=>{ stop(); document.removeEventListener('keydown',keyh); menu(); };
+    reset();
   }
 
   /* ---------- RESET ---------- */
