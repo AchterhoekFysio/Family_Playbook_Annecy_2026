@@ -157,10 +157,10 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="bingo"><span class="ic">🗺️</span><span class="tt">Vakantiebingo</span><span class="ds">Tik af wat je onderweg ziet.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="yahtzee"><span class="ic">🎲</span><span class="tt">Yahtzee</span><span class="ds">Herspeelbaar · hoogste totaal telt.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="music"><span class="ic">🎵</span><span class="tt">Hitster — muziek</span><span class="ds">Raad het jaar · zelf of samen.</span></button>
-      <button class="phTile wide" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="live"><span class="ic">🎬</span><span class="tt">Samen live — quizshow</span><span class="ds">Iedereen tegelijk dezelfde vraag, met afteltimer. Eén host.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="speur"><span class="ic">🔍</span><span class="tt">Speurtocht</span><span class="ds">Kids & volwassenen · rond de camping.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="live"><span class="ic">🎬</span><span class="tt">Samen live</span><span class="ds">Quizshow: iedereen tegelijk, met afteltimer. Eén host.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="top10"><span class="ic">⭐</span><span class="tt">Mijn top 10</span><span class="ds">Jouw wensen — zichtbaar voor de familie.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="vrijetijd"><span class="ic">🏖️</span><span class="tt">Vrije tijd</span><span class="ds">Wat wil jij doen bij de camping?</span></button>
-      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="speur"><span class="ic">🔍</span><span class="tt">Speurtocht</span><span class="ds">Kids & volwassenen · rond de camping.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
     view.appendChild(m);
@@ -245,10 +245,13 @@
     const updateTotal=()=>{totalRow.textContent=`Totaal: ${total()} ${upper()>=63?'(incl. +35 bonus)':''}`;};
     function drawDice(){dieRow.innerHTML='';dice.forEach((d,i)=>{const b=el(`<div class="phDie ${hold[i]?'hold':''}">${FACES[d]}</div>`);b.onclick=()=>{if(!started)return;hold[i]=!hold[i];drawDice();};dieRow.appendChild(b);});}
     function drawTable(){table.innerHTML='';cats.forEach(c=>{const filled=score[c.k]!==undefined;const prev=(started&&!filled)?scoreFor(c.k):(filled?score[c.k]:'');const tr=document.createElement('tr');tr.className=filled?'done':(started?'pick':'');const cell=(started&&!filled)?`<span class="pickPill">${prev} \u203a</span>`:(filled?score[c.k]:'—');tr.innerHTML=`<td>${c.n}</td><td class="v">${cell}</td>`;
-      if(started&&!filled){tr.onclick=async()=>{score[c.k]=scoreFor(c.k);rolls=0;hold=[false,false,false,false,false];started=false;rollBtn.disabled=false;rollBtn.textContent='Gooien';drawDice();drawTable();updateTotal();
-        if(allDone()){const t=total();updateTotal();await recordGame('yahtzee',t,{done:true,score:t},`Klaar! Totaal ${t}`);rollInfo.innerHTML=`<span class="phBig">Klaar! Totaal: ${t}</span><br>Je hoogste totaal telt mee.`;rollBtn.disabled=true;const again=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"><button class="phBtn coral">Nog een potje 🔁</button></div>');again.firstElementChild.onclick=()=>yahtzee();body.appendChild(again);}
-      };}
+      if(started&&!filled){tr.onclick=()=>pick(c.k);}
       table.appendChild(tr);});}
+    async function pick(k){
+      score[k]=scoreFor(k);rolls=0;hold=[false,false,false,false,false];started=false;rollBtn.disabled=false;rollBtn.textContent='Gooien';drawDice();drawTable();updateTotal();
+      if(allDone()){const t=total();updateTotal();await recordGame('yahtzee',t,{done:true,score:t},`Klaar! Totaal ${t}`);rollInfo.innerHTML=`<span class="phBig">Klaar! Totaal: ${t}</span><br>Je hoogste totaal telt mee.`;rollBtn.disabled=true;const again=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"><button class="phBtn coral">Nog een potje 🔁</button></div>');again.firstElementChild.onclick=()=>yahtzee();body.appendChild(again);}
+      else{rollInfo.innerHTML='Volgende beurt — druk op “Gooien”.';}
+    }
     rollBtn.onclick=()=>{if(allDone())return;if(rolls>=3){toast('Kies eerst een vak');return;}started=true;dice=dice.map((d,i)=>hold[i]?d:(1+Math.floor(Math.random()*6)));rolls++;rollInfo.innerHTML=`Worp ${rolls} van 3 — tik dobbelstenen aan om vast te houden, of tik hieronder op een <b style="color:var(--lake)">blauw vak</b> om je score daar vast te leggen.`;if(rolls>=3)rollBtn.disabled=true;drawDice();drawTable();};
     drawDice();drawTable();updateTotal();
     body.appendChild(rollInfo);body.appendChild(dieRow);const br=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>');br.appendChild(rollBtn);body.appendChild(br);body.appendChild(table);body.appendChild(totalRow);
