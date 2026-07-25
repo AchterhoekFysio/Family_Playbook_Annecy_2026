@@ -629,36 +629,42 @@
     levelPick();
   }
 
-  /* ---------- SNAKE (individueel) ---------- */
+  /* ---------- SNAKE (individueel, touch) ---------- */
   function snake(){
     const body=el('<div></div>');
-    const N=15, CELL=Math.max(16,Math.min(20,Math.floor(Math.min((window.innerWidth||360)-46,360)/N))), SZ=N*CELL;
-    let arr,dir,nextDir,food,loop=null,score=0,over=false,speed=150;
-    const cv=el('<canvas width="'+SZ+'" height="'+SZ+'" style="background:#0f2233;border-radius:12px;touch-action:none;max-width:100%"></canvas>');
-    const ctx=cv.getContext('2d');
-    const info=el('<p class="phNote phCenter" id="snScore">Score: 0</p>');
+    const N=17, MAXW=Math.min((window.innerWidth||360)-40,380), CELL=Math.max(14,Math.floor(MAXW/N)), SZ=N*CELL, DPR=Math.min(2,window.devicePixelRatio||1);
+    let arr,dir,nextDir,food,loop=null,score=0,over=false,speed=140,running=false;
+    const cv=el('<canvas width="'+(SZ*DPR)+'" height="'+(SZ*DPR)+'" style="width:'+SZ+'px;height:'+SZ+'px;max-width:100%;border-radius:16px;touch-action:none;display:block;box-shadow:0 8px 22px rgba(13,53,80,.18)"></canvas>');
+    const ctx=cv.getContext('2d'); ctx.scale(DPR,DPR);
+    const info=el('<p class="phNote phCenter" id="snScore" style="font-size:15px;font-weight:800;color:var(--ink)">Score: 0</p>');
+    function setScore(){ const e=document.getElementById('snScore'); if(e)e.textContent='Score: '+score; }
     function place(){ let ok=false; while(!ok){ food={x:Math.floor(Math.random()*N),y:Math.floor(Math.random()*N)}; ok=!arr.some(s=>s.x===food.x&&s.y===food.y); } }
-    function reset(){ arr=[{x:7,y:7},{x:6,y:7},{x:5,y:7}]; dir={x:1,y:0}; nextDir=dir; score=0; over=false; speed=150; const e=document.getElementById('snScore'); if(e)e.textContent='Score: 0'; place(); draw(); }
-    function draw(){ ctx.clearRect(0,0,SZ,SZ); ctx.fillStyle='#ff6f68'; ctx.fillRect(food.x*CELL+2,food.y*CELL+2,CELL-4,CELL-4); arr.forEach((s,i)=>{ ctx.fillStyle=i===0?'#2fe08a':'#37b26b'; ctx.fillRect(s.x*CELL+1,s.y*CELL+1,CELL-2,CELL-2); }); }
+    function reset(){ arr=[{x:8,y:8},{x:7,y:8},{x:6,y:8}]; dir={x:1,y:0}; nextDir=dir; score=0; over=false; speed=140; setScore(); place(); draw(); }
+    function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); ctx.fill(); }
+    function draw(){
+      const g=ctx.createLinearGradient(0,0,0,SZ); g.addColorStop(0,'#12293d'); g.addColorStop(1,'#0b1a28'); ctx.fillStyle=g; ctx.fillRect(0,0,SZ,SZ);
+      const fx=food.x*CELL+CELL/2, fy=food.y*CELL+CELL/2; ctx.save(); ctx.shadowColor='#ff6f68'; ctx.shadowBlur=14; ctx.fillStyle='#ff6f68'; ctx.beginPath(); ctx.arc(fx,fy,CELL*0.33,0,7); ctx.fill(); ctx.restore();
+      arr.forEach((s,i)=>{ const t=i/Math.max(1,arr.length-1); ctx.fillStyle=i===0?'#3ff09a':'rgba(55,178,107,'+(1-t*0.55).toFixed(2)+')'; rr(s.x*CELL+1.5,s.y*CELL+1.5,CELL-3,CELL-3,Math.min(7,CELL*0.32)); });
+      const h=arr[0], cx=h.x*CELL+CELL/2, cy=h.y*CELL+CELL/2; ctx.fillStyle='#0b1a28'; ctx.beginPath(); ctx.arc(cx+dir.x*CELL*0.16-2.4,cy+dir.y*CELL*0.16-1.6,1.7,0,7); ctx.arc(cx+dir.x*CELL*0.16+2.4,cy+dir.y*CELL*0.16-1.6,1.7,0,7); ctx.fill();
+    }
     function loopFn(){ if(loop)clearInterval(loop); loop=setInterval(step,speed); }
-    function step(){ if(over)return; dir=nextDir; const h={x:arr[0].x+dir.x,y:arr[0].y+dir.y}; if(h.x<0||h.y<0||h.x>=N||h.y>=N||arr.some(s=>s.x===h.x&&s.y===h.y)){ gameOver(); return; } arr.unshift(h); if(h.x===food.x&&h.y===food.y){ score++; const e=document.getElementById('snScore'); if(e)e.textContent='Score: '+score; place(); if(speed>70){speed-=4;loopFn();} } else { arr.pop(); } draw(); }
-    function start(){ reset(); loopFn(); }
-    function stop(){ if(loop){clearInterval(loop);loop=null;} }
-    function gameOver(){ over=true; stop(); recordGame('snake',score,{done:score>0,score},'Snake: '+score); info.innerHTML='Game over — score: <b>'+score+'</b> · je beste telt mee. Tik "Start / Opnieuw".'; }
-    function setDir(x,y){ if(dir.x===-x&&dir.y===-y)return; nextDir={x:x,y:y}; }
-    let sx=0,sy=0; cv.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; },{passive:true}); cv.addEventListener('touchend',e=>{ const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.abs(dx)<8&&Math.abs(dy)<8)return; if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1); });
-    const keyh=(e)=>{ const k=e.key; if(k==='ArrowUp')setDir(0,-1); else if(k==='ArrowDown')setDir(0,1); else if(k==='ArrowLeft')setDir(-1,0); else if(k==='ArrowRight')setDir(1,0); };
+    function step(){ if(over||!running)return; dir=nextDir; const h={x:arr[0].x+dir.x,y:arr[0].y+dir.y}; if(h.x<0||h.y<0||h.x>=N||h.y>=N||arr.some(s=>s.x===h.x&&s.y===h.y)){ gameOver(); return; } arr.unshift(h); if(h.x===food.x&&h.y===food.y){ score++; setScore(); place(); if(speed>65){speed-=4;loopFn();} } else arr.pop(); draw(); }
+    function start(){ reset(); running=true; loopFn(); setScore(); }
+    function stop(){ running=false; if(loop){clearInterval(loop);loop=null;} }
+    function gameOver(){ over=true; running=false; if(loop){clearInterval(loop);loop=null;} recordGame('snake',score,{done:score>0,score},'Snake: '+score); info.innerHTML='💀 Game over — score: <b>'+score+'</b> · beste telt mee. Veeg of tik ▶ voor opnieuw.'; }
+    function setDir(x,y){ if(dir.x===-x&&dir.y===-y)return; if(nextDir.x===x&&nextDir.y===y)return; nextDir={x:x,y:y}; }
+    function swipe(dx,dy){ const T=Math.max(12,CELL*0.7); if(Math.abs(dx)<T&&Math.abs(dy)<T)return false; if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?1:-1,0); else setDir(0,dy>0?1:-1); return true; }
+    let px=0,py=0,touching=false;
+    cv.addEventListener('touchstart',e=>{ e.preventDefault(); const t=e.touches[0]; px=t.clientX; py=t.clientY; touching=true; if(!running&&!over)start(); else if(over)start(); },{passive:false});
+    cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(!touching)return; const t=e.touches[0]; if(swipe(t.clientX-px,t.clientY-py)){ px=t.clientX; py=t.clientY; } },{passive:false});
+    cv.addEventListener('touchend',()=>{ touching=false; },{passive:true});
+    let md=false; cv.addEventListener('mousedown',e=>{ md=true; px=e.clientX; py=e.clientY; if(!running&&!over)start(); else if(over)start(); }); cv.addEventListener('mousemove',e=>{ if(!md)return; if(swipe(e.clientX-px,e.clientY-py)){ px=e.clientX; py=e.clientY; } }); const upH=()=>md=false; window.addEventListener('mouseup',upH);
+    const keyh=(e)=>{ const k=e.key; let hit=true; if(k==='ArrowUp')setDir(0,-1); else if(k==='ArrowDown')setDir(0,1); else if(k==='ArrowLeft')setDir(-1,0); else if(k==='ArrowRight')setDir(1,0); else hit=false; if(hit){ e.preventDefault(); if(!running&&!over)start(); } };
     document.addEventListener('keydown',keyh);
-    body.appendChild(el('<p class="phNote phCenter">Eet de rode blokjes. Veeg over het speelveld (of gebruik de pijltjes) om te sturen. Botsen = einde. Je beste score telt mee.</p>'));
+    body.appendChild(el('<p class="phNote phCenter">🐍 <b>Veeg met je vinger</b> over het speelveld om te sturen — ook in één doorlopende beweging. Eet de rode appel. Botsen = einde. Je beste score telt mee.</p>'));
     const wrap=el('<div class="phCenter"></div>'); wrap.appendChild(cv); body.appendChild(wrap); body.appendChild(info);
-    const mk=(t,x,y)=>{ const b=el('<button class="phBtn alt" style="width:54px;height:46px;margin:3px;font-size:18px">'+t+'</button>'); b.onclick=()=>setDir(x,y); return b; };
-    const pad=el('<div class="phCenter" style="margin-top:8px;user-select:none"></div>');
-    const r1=el('<div class="phCenter"></div>'); r1.appendChild(mk('▲',0,-1));
-    const r2=el('<div class="phCenter"></div>'); r2.appendChild(mk('◀',-1,0)); r2.appendChild(mk('▶',1,0));
-    const r3=el('<div class="phCenter"></div>'); r3.appendChild(mk('▼',0,1));
-    pad.appendChild(r1); pad.appendChild(r2); pad.appendChild(r3); body.appendChild(pad);
-    const ctr=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const sb=el('<button class="phBtn coral">Start / Opnieuw</button>'); sb.onclick=start; ctr.appendChild(sb); body.appendChild(ctr);
-    const p=panel('Snake 🐍',body); p.querySelector('.phBack').onclick=()=>{ stop(); document.removeEventListener('keydown',keyh); menu(); };
+    const ctr=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const sb=el('<button class="phBtn coral">▶ Start / Opnieuw</button>'); sb.onclick=start; ctr.appendChild(sb); body.appendChild(ctr);
+    const p=panel('Snake 🐍',body); p.querySelector('.phBack').onclick=()=>{ stop(); document.removeEventListener('keydown',keyh); window.removeEventListener('mouseup',upH); menu(); };
     reset();
   }
 
