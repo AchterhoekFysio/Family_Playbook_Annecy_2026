@@ -166,6 +166,8 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="patience"><span class="ic">🃏</span><span class="tt">Patience</span><span class="ds">Klassiek kaartspel · tik & leg · minste zetten telt.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="memory"><span class="ic">🧠</span><span class="tt">Memory</span><span class="ds">Vind de paren · kids & volwassen.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tetris"><span class="ic">🟦</span><span class="tt">Tetris</span><span class="ds">Blokken stapelen · swipe & draai · beste telt.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="poker"><span class="ic">🂡</span><span class="tt">Poker</span><span class="ds">Video-poker · houd & trek · meeste fiches telt.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="flip7"><span class="ic">🎴</span><span class="tt">Flip 7</span><span class="ds">Push your luck · durf jij door te flippen?</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
     view.appendChild(m);
@@ -175,7 +177,7 @@
     const reset=el('<button class="phBtn alt" style="align-self:center;margin-top:2px">⟲ Reset spellen</button>');
     reset.onclick=resetPanel; view.appendChild(reset);
   }
-  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,memory,tetris,reset:resetPanel}[g]||menu)(); }
+  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,memory,tetris,poker,flip7,reset:resetPanel}[g]||menu)(); }
   try{ window.AnnecyOpenGame=function(g){ try{ open(g); }catch(e){ console.error(e); } }; }catch(e){}
   function panel(title,bodyNode){ view.innerHTML=''; const p=el(`<div class="phPanel"><div class="phBar"><button class="phBack">‹ Terug</button><h3>${title}</h3><span></span></div></div>`); p.querySelector('.phBack').onclick=menu; p.appendChild(bodyNode); view.appendChild(p); return p; }
   function joinGate(title){ const body=el('<div><p class="phNote">Doe eerst mee met de familiecode hierboven ⤴ om dit te gebruiken.</p></div>'); panel(title,body); return body; }
@@ -834,6 +836,96 @@
       spawn(); draw(); resetTimer();
     }
     start();
+  }
+
+  /* ---------- POKER (video poker · Jacks or Better) ---------- */
+  function poker(){
+    if(!document.getElementById('pkCss')){ const st=document.createElement('style'); st.id='pkCss'; st.textContent=`
+      .pkRow{display:flex;gap:6px;justify-content:center;margin:10px 0}
+      .pkCard{width:58px;height:82px;border-radius:9px;background:#fff;border:1px solid #cfdbd8;box-shadow:0 1px 3px rgba(0,0,0,.14);display:flex;flex-direction:column;justify-content:space-between;padding:5px 6px;font-weight:800;font-size:16px;color:#0d3550;cursor:pointer;position:relative}
+      .pkCard span:last-child{align-self:center;font-size:20px}
+      .pkCard.red{color:#d63a4a}
+      .pkCard.held{outline:3px solid #0f91a3;outline-offset:1px}
+      .pkCard .hld{position:absolute;left:0;right:0;bottom:-8px;text-align:center;font-size:9px;font-weight:800;color:#0f91a3}
+      .pkPay{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+      .pkPay td{padding:2px 6px;border-bottom:1px solid #eef2f1}.pkPay td:last-child{text-align:right;font-weight:800;color:#0f91a3}
+    `; document.head.appendChild(st); }
+    const SUIT=['♠','♥','♦','♣'], red=s=>s===1||s===2, rank=r=>({11:'B',12:'V',13:'H',14:'A'}[r]||String(r));
+    let deck=[], hand=[], held=[false,false,false,false,false], credits=20, phase='ready', hands=0, last=null;
+    const MAXH=25;
+    const wrap=el('<div></div>');
+    const p=panel('Poker 🂡',wrap); p.querySelector('.phBack').onclick=menu;
+    const bar=el('<div class="phBar"><span class="phNote" id="pkInfo">Fiches: 20</span><span class="phTimer" id="pkHand">hand 0/'+MAXH+'</span></div>'); wrap.appendChild(bar);
+    const board=el('<div></div>'); wrap.appendChild(board);
+    function fresh(){ deck=[]; for(let s=0;s<4;s++)for(let r=2;r<=14;r++)deck.push({r,s}); deck=shuffle(deck); }
+    function evalHand(cs){ const rs=cs.map(c=>c.r).slice().sort((a,b)=>a-b); const su=cs.map(c=>c.s); const flush=su.every(s=>s===su[0]); const uniq=[...new Set(rs)]; let straight=false,high=0; if(uniq.length===5){ if(rs[4]-rs[0]===4){straight=true;high=rs[4];} else if(rs.join(',')==='2,3,4,5,14'){straight=true;high=5;} } const cnt={}; rs.forEach(r=>cnt[r]=(cnt[r]||0)+1); const counts=Object.values(cnt).sort((a,b)=>b-a);
+      if(flush&&straight&&high===14) return {n:'Royal Flush',pay:250}; if(flush&&straight) return {n:'Straight Flush',pay:50}; if(counts[0]===4) return {n:'Vier gelijk',pay:25}; if(counts[0]===3&&counts[1]===2) return {n:'Full House',pay:9}; if(flush) return {n:'Flush',pay:6}; if(straight) return {n:'Straight',pay:4}; if(counts[0]===3) return {n:'Drie gelijk',pay:3}; if(counts[0]===2&&counts[1]===2) return {n:'Twee paar',pay:2}; if(counts[0]===2){ const pr=+Object.keys(cnt).find(r=>cnt[r]===2); if(pr>=11||pr===14) return {n:'Paar boeren of hoger',pay:1}; return {n:'Te laag paar',pay:0}; } return {n:'Hoge kaart',pay:0}; }
+    function deal(){ if(credits<=0||hands>=MAXH){ end(); return; } if(deck.length<12) fresh(); credits--; hands++; hand=[deck.pop(),deck.pop(),deck.pop(),deck.pop(),deck.pop()]; held=[false,false,false,false,false]; phase='draw'; last=null; render(); }
+    function draw(){ for(let i=0;i<5;i++) if(!held[i]) hand[i]=deck.pop(); last=evalHand(hand); credits+=last.pay; phase='done'; render(); }
+    function cardEl(c,i){ const e=el('<div class="pkCard'+(red(c.s)?' red':'')+(held[i]?' held':'')+'"><span>'+rank(c.r)+'</span><span>'+SUIT[c.s]+'</span></div>'); if(phase==='draw'){ e.onclick=()=>{ held[i]=!held[i]; render(); }; if(held[i]) e.appendChild(el('<div class="hld">VAST</div>')); } return e; }
+    function render(){
+      board.innerHTML='';
+      const inf=document.getElementById('pkInfo'); if(inf)inf.textContent='Fiches: '+credits; const hd=document.getElementById('pkHand'); if(hd)hd.textContent='hand '+hands+'/'+MAXH;
+      if(phase==='ready'){ board.appendChild(el('<p class="phNote phCenter">Video-poker · Jacks or Better. Je krijgt 5 kaarten, houd de beste vast (tik erop) en trek de rest opnieuw. Hoe beter je hand, hoe meer fiches. Je <b>eindstand in fiches</b> telt mee in de familie.</p>')); }
+      else { const row=el('<div class="pkRow"></div>'); hand.forEach((c,i)=>row.appendChild(cardEl(c,i))); board.appendChild(row); }
+      if(last){ board.appendChild(el('<p class="phCenter" style="font-weight:800;font-size:17px;color:'+(last.pay>0?'#2e9e5b':'#8aa2ab')+'">'+esc(last.n)+(last.pay>0?' · +'+last.pay+' fiches':' · geen uitbetaling')+'</p>')); }
+      const rowb=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:8px"></div>');
+      if(phase==='ready'||phase==='done'){ if(credits>0&&hands<MAXH){ const d=el('<button class="phBtn coral">'+(phase==='ready'?'Deel (inzet 1)':'Volgende hand ›')+'</button>'); d.onclick=deal; rowb.appendChild(d); } const s=el('<button class="phBtn alt">Stoppen — inleveren</button>'); s.onclick=end; rowb.appendChild(s); }
+      else if(phase==='draw'){ const t=el('<button class="phBtn coral">Trek kaarten ›</button>'); t.onclick=draw; rowb.appendChild(t); }
+      board.appendChild(rowb);
+      if(phase==='draw') board.appendChild(el('<p class="phNote phCenter">Tik de kaarten aan die je wilt <b>houden</b>, druk dan op “Trek kaarten”.</p>'));
+      const pay=el('<table class="pkPay"><tr><td>Royal Flush</td><td>250</td></tr><tr><td>Straight Flush</td><td>50</td></tr><tr><td>Vier gelijk</td><td>25</td></tr><tr><td>Full House</td><td>9</td></tr><tr><td>Flush</td><td>6</td></tr><tr><td>Straight</td><td>4</td></tr><tr><td>Drie gelijk</td><td>3</td></tr><tr><td>Twee paar</td><td>2</td></tr><tr><td>Paar (boeren of hoger)</td><td>1</td></tr></table>'); board.appendChild(pay);
+    }
+    function end(){ recordGame('poker', Math.max(0,credits), {done:true,credits,hands}, 'Poker: '+credits+' fiches'); board.innerHTML='<p class="phCenter" style="font-size:19px;font-weight:800;color:var(--lake)">🂡 Klaar! Eindstand: '+credits+' fiches</p>'; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const again=el('<button class="phBtn coral">Opnieuw ›</button>'); again.onclick=()=>{ credits=20; hands=0; phase='ready'; last=null; render(); }; const b=el('<button class="phBtn alt">Terug</button>'); b.onclick=menu; r.appendChild(again); r.appendChild(b); board.appendChild(r); }
+    render();
+  }
+
+  /* ---------- FLIP 7 (push your luck) ---------- */
+  function flip7(){
+    if(!document.getElementById('f7Css')){ const st=document.createElement('style'); st.id='f7Css'; st.textContent=`
+      .f7Cards{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:10px 0;min-height:56px}
+      .f7C{width:46px;height:60px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:19px;background:#fff;border:1px solid #cfdbd8;box-shadow:0 1px 2px rgba(0,0,0,.12);color:#0d3550}
+      .f7C.mod{background:#fff5e6;border-color:#f0c987;color:#c6851e;font-size:15px}
+      .f7C.act{background:#e9f3ff;border-color:#a9c9ee;color:#2a5fa8;font-size:12px;text-align:center;line-height:1.05}
+      .f7big{font-size:34px;font-weight:800;text-align:center}
+    `; document.head.appendChild(st); }
+    let deck=[], total=0, uniq=new Set(), collected=[], numSum=0, mods=0, x2=false, second=false, pending=0, phase='play', busted=false;
+    const wrap=el('<div></div>'); const p=panel('Flip 7 🎴',wrap); p.querySelector('.phBack').onclick=menu;
+    const bar=el('<div class="phBar"><span class="phNote" id="f7Tot">Totaal: 0</span><span class="phTimer" id="f7Round">rondescore 0</span></div>'); wrap.appendChild(bar);
+    const board=el('<div></div>'); wrap.appendChild(board);
+    function build(){ deck=[]; deck.push({t:'n',v:0}); for(let v=1;v<=12;v++) for(let k=0;k<v;k++) deck.push({t:'n',v}); [2,4,6,8,10].forEach(v=>deck.push({t:'m',v})); deck.push({t:'x2'}); for(let k=0;k<3;k++){ deck.push({t:'freeze'}); deck.push({t:'flip3'}); deck.push({t:'second'}); } deck=shuffle(deck); }
+    function roundScore(){ return numSum*(x2?2:1)+mods+(uniq.size>=7?15:0); }
+    function newRound(){ uniq=new Set(); collected=[]; numSum=0; mods=0; x2=false; second=false; pending=0; busted=false; phase='play'; render(); }
+    function draw(){ if(!deck.length) build(); return deck.pop(); }
+    function flip(){ if(phase!=='play') return; const c=draw();
+      if(c.t==='n'){ collected.push({t:'n',v:c.v}); if(uniq.has(c.v)){ if(second){ second=false; collected.push({t:'act',label:'2e kans gebruikt'}); toast('Tweede kans gebruikt!'); } else { return bust(); } } else { uniq.add(c.v); numSum+=c.v; if(uniq.size>=7){ collected.push({t:'act',label:'FLIP 7! +15'}); return bank(true); } } }
+      else if(c.t==='m'){ mods+=c.v; collected.push({t:'m',v:c.v}); }
+      else if(c.t==='x2'){ x2=true; collected.push({t:'x2'}); }
+      else if(c.t==='freeze'){ collected.push({t:'act',label:'❄️ Freeze'}); return bank(false); }
+      else if(c.t==='second'){ second=true; collected.push({t:'act',label:'🛟 2e kans'}); }
+      else if(c.t==='flip3'){ pending+=3; collected.push({t:'act',label:'↻ Flip 3'}); }
+      if(pending>0) pending--;
+      render();
+    }
+    function bust(){ busted=true; phase='bust'; render(); }
+    function bank(flip7){ const s=roundScore(); total+=s; phase='banked'; render(s,flip7); }
+    function stay(){ if(pending>0){ toast('Je moet eerst je Flip 3 afmaken.'); return; } bank(false); }
+    function cardNode(c){ if(c.t==='n') return el('<div class="f7C">'+c.v+'</div>'); if(c.t==='m') return el('<div class="f7C mod">+'+c.v+'</div>'); if(c.t==='x2') return el('<div class="f7C mod">×2</div>'); return el('<div class="f7C act">'+esc(c.label||'')+'</div>'); }
+    function render(bankedScore,wasFlip7){
+      board.innerHTML='';
+      const t=document.getElementById('f7Tot'); if(t)t.textContent='Totaal: '+total; const r=document.getElementById('f7Round'); if(r)r.textContent='rondescore '+roundScore();
+      const cards=el('<div class="f7Cards"></div>'); collected.forEach(c=>cards.appendChild(cardNode(c))); if(!collected.length) cards.appendChild(el('<span class="phNote">Nog geen kaarten deze ronde.</span>')); board.appendChild(cards);
+      board.appendChild(el('<p class="phNote phCenter">Unieke getallen: <b>'+uniq.size+'/7</b>'+(second?' · 🛟 2e kans actief':'')+(x2?' · ×2 actief':'')+(pending>0?' · nog '+pending+'× flippen':'')+'</p>'));
+      const row=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:8px"></div>');
+      if(phase==='play'){ const f=el('<button class="phBtn coral">🎴 Flip</button>'); f.onclick=flip; row.appendChild(f); const s=el('<button class="phBtn alt">Stop & bewaar ('+roundScore()+')</button>'); s.onclick=stay; row.appendChild(s); }
+      else if(phase==='bust'){ board.appendChild(el('<p class="f7big" style="color:#e05a52">💥 BUST!</p><p class="phNote phCenter">Dubbel getal — deze ronde levert 0 op.</p>')); const n=el('<button class="phBtn coral">Nieuwe ronde ›</button>'); n.onclick=newRound; row.appendChild(n); }
+      else if(phase==='banked'){ board.appendChild(el('<p class="f7big" style="color:#2e9e5b">'+(wasFlip7?'🎉 FLIP 7! ':'✓ ')+'+'+(bankedScore||0)+'</p><p class="phNote phCenter">Bewaard! Totaal nu '+total+'.</p>')); const n=el('<button class="phBtn coral">Nieuwe ronde ›</button>'); n.onclick=newRound; row.appendChild(n); }
+      if(phase!=='play'||true){ const e=el('<button class="phBtn" style="background:#eef4f4;color:#0d3550">🏁 Stoppen — score inleveren ('+total+')</button>'); e.onclick=end; row.appendChild(e); }
+      board.appendChild(row);
+      if(phase==='play') board.appendChild(el('<p class="phNote phCenter">Flip kaarten voor punten. Getallen tellen op, maar een <b>dubbel getal = bust</b> (0). Verzamel <b>7 unieke</b> = +15 bonus. Stop op tijd om je rondescore te bewaren. Je <b>totaal</b> telt mee.</p>'));
+    }
+    function end(){ recordGame('flip7', Math.max(0,total), {done:true,total}, 'Flip 7: '+total+' punten'); board.innerHTML='<p class="phCenter" style="font-size:19px;font-weight:800;color:var(--lake)">🎴 Klaar! Totaal: '+total+' punten</p>'; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const again=el('<button class="phBtn coral">Opnieuw ›</button>'); again.onclick=()=>{ total=0; newRound(); }; const b=el('<button class="phBtn alt">Terug</button>'); b.onclick=menu; r.appendChild(again); r.appendChild(b); board.appendChild(r); }
+    build(); newRound();
   }
 
   /* ---------- RESET ---------- */
