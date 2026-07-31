@@ -270,7 +270,7 @@ const catIcons={'Alles':'▦','Stranden':'🏖️','Actief':'⚡','Cultuur':'�
 function switchScreen(id){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));scrollTo(0,0)}
 function goGame(g){switchScreen('games');setTimeout(function(){try{if(window.AnnecyOpenGame)window.AnnecyOpenGame(g);}catch(e){}},50)}
 function openPhotobook(){if(window.AnnecyPhotobook){try{window.AnnecyPhotobook.open('vos');}catch(e){console.error(e);alert('Fotoboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='photobook.js?v=34';s.onload=function(){if(window.AnnecyPhotobook)window.AnnecyPhotobook.open('vos');};document.head.appendChild(s);}
-function openDiary(){if(window.AnnecyDiary){try{window.AnnecyDiary.open();}catch(e){console.error(e);alert('Fotodagboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='diary.js?v=1';s.onload=function(){if(window.AnnecyDiary)window.AnnecyDiary.open();};document.head.appendChild(s);}
+function openDiary(){if(window.AnnecyDiary){try{window.AnnecyDiary.open();}catch(e){console.error(e);alert('Fotodagboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='diary.js?v=2';s.onload=function(){if(window.AnnecyDiary)window.AnnecyDiary.open();};document.head.appendChild(s);}
 function openFavsPopup(){
   function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   var A=window.AnnecyLive;
