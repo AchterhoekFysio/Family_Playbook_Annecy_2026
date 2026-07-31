@@ -130,6 +130,7 @@
 <section id="home" class="screen active">
 <div class="stats"><div class="stat"><div>📆</div><b id="days">—</b><span>dagen</span></div><div class="stat" onclick="openFavsPopup()" style="cursor:pointer"><div>❤️</div><b id="favCount">0</b><span>favorieten ›</span></div><div class="stat"><div>⭐</div><b id="bingoCount">0/25</b><span>bingo</span></div><div class="stat"><div>📋</div><b id="planCount">0</b><span>planning</span></div></div>
 <div class="card" style="display:flex;gap:10px;align-items:stretch"><button class="primary" style="flex:1;flex-direction:column;gap:2px;padding:14px 10px" onclick="openPhotobook()"><span style="font-size:1.5rem">📖</span>Fotoalbum & fotoboek</button><button style="flex:1;flex-direction:column;gap:2px;padding:14px 10px;background:#ffe9e7;color:var(--ink)" onclick="openFavsPopup()"><span style="font-size:1.5rem">❤️</span>Wie vindt wat leuk</button></div>
+<div class="card" style="padding:0"><button style="width:100%;flex-direction:column;gap:3px;padding:16px 10px;background:linear-gradient(135deg,#0f91a3,#0d6f8b);color:#fff;border-radius:16px" onclick="openDiary()"><span style="font-size:1.6rem">📔</span><b>Annecy Fotodagboek</b><span style="font-weight:600;font-size:.8rem;opacity:.92">Schrijf samen per dag · foto's + verhaal</span></button></div>
 <div class="sectionHead"><h2>☀️ Aanbevolen voor vandaag</h2><button class="linkish" onclick="switchScreen('activities')">Bekijk alle ›</button></div><div class="recs" id="recs"></div>
 
 <div class="todayPlan card">
@@ -269,6 +270,7 @@ const catIcons={'Alles':'▦','Stranden':'🏖️','Actief':'⚡','Cultuur':'�
 function switchScreen(id){document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===id));scrollTo(0,0)}
 function goGame(g){switchScreen('games');setTimeout(function(){try{if(window.AnnecyOpenGame)window.AnnecyOpenGame(g);}catch(e){}},50)}
 function openPhotobook(){if(window.AnnecyPhotobook){try{window.AnnecyPhotobook.open('vos');}catch(e){console.error(e);alert('Fotoboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='photobook.js?v=34';s.onload=function(){if(window.AnnecyPhotobook)window.AnnecyPhotobook.open('vos');};document.head.appendChild(s);}
+function openDiary(){if(window.AnnecyDiary){try{window.AnnecyDiary.open();}catch(e){console.error(e);alert('Fotodagboek kon niet openen — vernieuw de pagina en probeer opnieuw.');}return;}var s=document.createElement('script');s.src='diary.js?v=1';s.onload=function(){if(window.AnnecyDiary)window.AnnecyDiary.open();};document.head.appendChild(s);}
 function openFavsPopup(){
   function _e(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   var A=window.AnnecyLive;
@@ -560,7 +562,7 @@ document.querySelectorAll("[data-screen]").forEach(btn=>btn.addEventListener("cl
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js?v=24"></script>
-<script src="supabase-live.js?v=38"></script>
+<script src="supabase-live.js?v=39"></script>
 <script src="games-interactive.js?v=42"></script>
 <script src="photobook.js?v=34"></script>
 </body></html>

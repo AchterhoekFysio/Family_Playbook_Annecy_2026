@@ -82,9 +82,9 @@
     const chip='padding:6px 11px;border-radius:999px;border:1px solid #d5e0dd;font-size:13px;cursor:pointer;font-weight:700';
     const guests=state.players.filter(p=>!p.active);
     let bar='';
-    if(guests.length && !state.locked){
+    if(admin && guests.length && !state.locked){
       bar='<div style="background:#eef4f4;border-radius:12px;padding:10px;margin-bottom:12px">'
-        +'<div style="font-weight:800;font-size:13px;color:#0d3550;margin-bottom:6px">📱 Wie speelt er nu op deze telefoon?</div>'
+        +'<div style="font-weight:800;font-size:13px;color:#0d3550;margin-bottom:6px">📱 Wie speelt er nu op deze telefoon? <span style="font-weight:600;color:#6b8794">(alleen beheerder)</span></div>'
         +'<div style="display:flex;flex-wrap:wrap;gap:6px">'
         +'<button onclick="AnnecySetPlayAs(\'\')" style="'+chip+';'+(!state.playingAs?'background:#0f91a3;color:#fff':'background:#fff;color:#0d3550')+'">🙋 '+esc(state.player.display_name)+' (jij)</button>'
         +guests.map(g=>'<button onclick="AnnecySetPlayAs(\''+g.id+'\')" style="'+chip+';'+(state.playingAs===g.id?'background:#ff6f68;color:#fff':'background:#fff;color:#0d3550')+'">'+esc(g.display_name)+'</button>').join('')
