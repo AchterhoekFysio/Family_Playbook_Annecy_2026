@@ -124,7 +124,7 @@
   window.AnnecyPlayerGames=async function(pid){
     const p=state.players.find(x=>x.id===pid); if(!p||!state.client||!state.group)return;
     let rows=[]; try{ const {data}=await state.client.from('game_progress').select('game_key,state').eq('group_id',state.group.id).eq('player_id',pid); rows=data||[]; }catch(e){}
-    const LABELS={quiz:'🧠 Familiequiz',bingo:'🗺️ Vakantiebingo',yahtzee:'🎲 Yahtzee',music:'🎵 Hitster',speurtocht:'🔍 Speurtocht',woordrace:'🔤 Woordrace',snake:'🐍 Snake',patience:'🃏 Patience',memory:'🧠 Memory',tetris:'🟦 Tetris',poker:'🂡 Poker',flip7:'🎴 Flip 7',top10:'⭐ Mijn top 10',favs:'❤️ Favorieten',vrijetijd:'🛋️ Vrije tijd'};
+    const LABELS={quiz:'🧠 Familiequiz',bingo:'🗺️ Vakantiebingo',yahtzee:'🎲 Yahtzee',music:'🎵 Hitster',speurtocht:'🔍 Speurtocht',woordrace:'🔤 Woordrace',snake:'🐍 Snake',patience:'🃏 Patience',memory:'🧠 Memory',tetris:'🟦 Tetris',poker:'🂡 Poker',flip7:'🎴 Flip 7','2048':'🔢 2048',mastermind:'🎯 Mastermind',mijnenveger:'💣 Mijnenveger',simon:'🎵 Simon',galgje:'🪢 Galgje',top10:'⭐ Mijn top 10',favs:'❤️ Favorieten',vrijetijd:'🛋️ Vrije tijd'};
     const scored=rows.filter(r=>r.state && r.state.best!=null && Number(r.state.best)>0);
     const inner = scored.length ? scored.map(r=>'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eef2f1"><span>'+(LABELS[r.game_key]||r.game_key)+'</span><b>'+Number(r.state.best)+'</b></div>').join('') : '<p class="small">Nog geen spellen met een score gespeeld.</p>';
     let ov=document.getElementById('pgOverlay'); if(ov) ov.remove();

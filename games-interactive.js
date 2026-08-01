@@ -168,6 +168,14 @@
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tetris"><span class="ic">🟦</span><span class="tt">Tetris</span><span class="ds">Blokken stapelen · swipe & draai · beste telt.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="poker"><span class="ic">🂡</span><span class="tt">Poker</span><span class="ds">Video-poker · houd & trek · meeste fiches telt.</span></button>
       <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="flip7"><span class="ic">🎴</span><span class="tt">Flip 7</span><span class="ds">Push your luck · durf jij door te flippen?</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="g2048"><span class="ic">🔢</span><span class="tt">2048</span><span class="ds">Schuif & verdubbel · hoogste score telt.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="mastermind"><span class="ic">🎯</span><span class="tt">Mastermind</span><span class="ds">Kraak de geheime kleurcode.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="mijnenveger"><span class="ic">💣</span><span class="tt">Mijnenveger</span><span class="ds">Vermijd de mijnen · snelste tijd telt.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="simon"><span class="ic">🎵</span><span class="tt">Simon</span><span class="ds">Speel de kleurreeks na · hoe ver kom je?</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="galgje"><span class="ic">🪢</span><span class="tt">Galgje</span><span class="ds">Woord raden · kids & volwassen · telt mee.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="hints"><span class="ic">🎭</span><span class="tt">Hints</span><span class="ds">Samen · uitbeelden & raden tegen de klok.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="stadlandrivier"><span class="ic">📝</span><span class="tt">Stad-land-rivier</span><span class="ds">Samen · categorieën met één letter.</span></button>
+      <button class="phTile" style="display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left" data-g="tekenraad"><span class="ic">✏️</span><span class="tt">Teken & raad</span><span class="ds">Samen · teken op het scherm, de rest raadt.</span></button>
     </div>`);
     m.querySelectorAll('.phTile').forEach(b=> b.onclick=()=>open(b.dataset.g));
     view.appendChild(m);
@@ -177,7 +185,7 @@
     const reset=el('<button class="phBtn alt" style="align-self:center;margin-top:2px">⟲ Reset spellen</button>');
     reset.onclick=resetPanel; view.appendChild(reset);
   }
-  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,memory,tetris,poker,flip7,reset:resetPanel}[g]||menu)(); }
+  function open(g){ ({quiz,bingo,yahtzee,music,live:liveQuiz,top10,vrijetijd,favs:favsView,fotos:photoAlbum,speur:speurtocht,tijdbom,woordrace,snake,patience,memory,tetris,poker,flip7,g2048,mastermind,mijnenveger,simon:simonGame,hints,stadlandrivier,galgje,tekenraad,reset:resetPanel}[g]||menu)(); }
   try{ window.AnnecyOpenGame=function(g){ try{ open(g); }catch(e){ console.error(e); } }; }catch(e){}
   function panel(title,bodyNode){ view.innerHTML=''; const p=el(`<div class="phPanel"><div class="phBar"><button class="phBack">‹ Terug</button><h3>${title}</h3><span></span></div></div>`); p.querySelector('.phBack').onclick=menu; p.appendChild(bodyNode); view.appendChild(p); return p; }
   function joinGate(title){ const body=el('<div><p class="phNote">Doe eerst mee met de familiecode hierboven ⤴ om dit te gebruiken.</p></div>'); panel(title,body); return body; }
@@ -926,6 +934,184 @@
     }
     function end(){ recordGame('flip7', Math.max(0,total), {done:true,total}, 'Flip 7: '+total+' punten'); board.innerHTML='<p class="phCenter" style="font-size:19px;font-weight:800;color:var(--lake)">🎴 Klaar! Totaal: '+total+' punten</p>'; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const again=el('<button class="phBtn coral">Opnieuw ›</button>'); again.onclick=()=>{ total=0; newRound(); }; const b=el('<button class="phBtn alt">Terug</button>'); b.onclick=menu; r.appendChild(again); r.appendChild(b); board.appendChild(r); }
     build(); newRound();
+  }
+
+  /* ---------- 2048 ---------- */
+  function g2048(){
+    if(!document.getElementById('g2Css')){ const st=document.createElement('style'); st.id='g2Css'; st.textContent=`
+      .g2Wrap{max-width:320px;margin:0 auto}
+      .g2Grid{background:#bbada0;border-radius:8px;padding:6px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;aspect-ratio:1/1;touch-action:none;margin:6px 0}
+      .g2T{background:#cdc1b4;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:min(7.5vw,26px);color:#776e65}
+    `; document.head.appendChild(st); }
+    const N=4; let grid, score, over;
+    const COL={2:'#eee4da',4:'#ede0c8',8:'#f2b179',16:'#f59563',32:'#f67c5f',64:'#f65e3b',128:'#edcf72',256:'#edcc61',512:'#edc850',1024:'#edc53f',2048:'#edc22e'};
+    const wrap=el('<div class="g2Wrap"></div>'); const p=panel('2048 🔢',wrap);
+    const bar=el('<div class="phBar"><span class="phNote" id="g2S">Score: 0</span><button class="phBtn alt" id="g2New" style="padding:6px 12px">Nieuw</button></div>'); wrap.appendChild(bar);
+    const board=el('<div class="g2Grid"></div>'); wrap.appendChild(board);
+    wrap.appendChild(el('<p class="phNote phCenter">Veeg om te schuiven, gelijke getallen versmelten. Haal 2048! Je hoogste score telt mee.</p>'));
+    bar.querySelector('#g2New').onclick=init;
+    function init(){ grid=[[0,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]]; score=0; over=false; addTile(); addTile(); render(); }
+    function addTile(){ const e=[]; for(let i=0;i<N;i++)for(let j=0;j<N;j++)if(!grid[i][j])e.push([i,j]); if(!e.length)return; const c=e[Math.floor(Math.random()*e.length)]; grid[c[0]][c[1]]=Math.random()<0.9?2:4; }
+    function slide(row){ let a=row.filter(x=>x); for(let i=0;i<a.length-1;i++){ if(a[i]===a[i+1]){ a[i]*=2; score+=a[i]; a.splice(i+1,1); } } while(a.length<N)a.push(0); return a; }
+    function move(dir){ if(over)return; const before=JSON.stringify(grid); for(let i=0;i<N;i++){ let line=[]; for(let j=0;j<N;j++) line.push(dir<2?grid[i][j]:grid[j][i]); if(dir===1||dir===3)line.reverse(); line=slide(line); if(dir===1||dir===3)line.reverse(); for(let j=0;j<N;j++){ if(dir<2)grid[i][j]=line[j]; else grid[j][i]=line[j]; } } if(JSON.stringify(grid)!==before){ addTile(); render(); if(!canMove()) end(); } }
+    function canMove(){ for(let i=0;i<N;i++)for(let j=0;j<N;j++){ if(!grid[i][j])return true; if(j<N-1&&grid[i][j]===grid[i][j+1])return true; if(i<N-1&&grid[i][j]===grid[i+1][j])return true; } return false; }
+    function render(){ board.innerHTML=''; for(let i=0;i<N;i++)for(let j=0;j<N;j++){ const v=grid[i][j]; const t=el('<div class="g2T"></div>'); if(v){ t.textContent=v; t.style.background=COL[v]||'#3c3a32'; if(v>4)t.style.color='#f9f6f2'; if(v>=128)t.style.fontSize='min(6vw,22px)'; } board.appendChild(t); } const s=document.getElementById('g2S'); if(s)s.textContent='Score: '+score; }
+    function end(){ over=true; recordGame('2048',score,{done:true,score},'2048: '+score+' punten'); toast('Game over — score '+score); }
+    let sx,sy; board.addEventListener('touchstart',e=>{ const t=e.touches[0]; sx=t.clientX; sy=t.clientY; },{passive:true});
+    board.addEventListener('touchend',e=>{ const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy; if(Math.max(Math.abs(dx),Math.abs(dy))<24)return; if(Math.abs(dx)>Math.abs(dy)) move(dx>0?1:0); else move(dy>0?3:2); });
+    const keyh=(e)=>{ const k={ArrowLeft:0,ArrowRight:1,ArrowUp:2,ArrowDown:3}[e.key]; if(k!==undefined){ move(k); e.preventDefault(); } };
+    document.addEventListener('keydown',keyh);
+    p.querySelector('.phBack').onclick=()=>{ document.removeEventListener('keydown',keyh); menu(); };
+    init();
+  }
+
+  /* ---------- MASTERMIND ---------- */
+  function mastermind(){
+    const PAL=['🔴','🟡','🟢','🔵','🟣','🟠']; const LEN=4, MAXG=10;
+    let secret, guesses, cur;
+    const wrap=el('<div></div>'); const p=panel('Mastermind 🎯',wrap); p.querySelector('.phBack').onclick=menu;
+    const board=el('<div></div>'); wrap.appendChild(board);
+    function init(){ secret=[]; for(let i=0;i<LEN;i++)secret.push(Math.floor(Math.random()*PAL.length)); guesses=[]; cur=[]; render(); }
+    function score(g){ let black=0,white=0; const s=secret.slice(), gg=g.slice(); for(let i=0;i<LEN;i++){ if(gg[i]===s[i]){ black++; s[i]=-1; gg[i]=-2; } } for(let i=0;i<LEN;i++){ if(gg[i]>=0){ const idx=s.indexOf(gg[i]); if(idx>=0){ white++; s[idx]=-1; } } } return {black,white}; }
+    function submit(){ if(cur.length!==LEN)return; const fb=score(cur); guesses.push({g:cur.slice(),fb}); const won=fb.black===LEN; cur=[]; render(); if(won){ const pts=(MAXG-guesses.length+1)*12; recordGame('mastermind',pts,{done:true,tries:guesses.length},'Mastermind gekraakt in '+guesses.length); done('🎉 Gekraakt in '+guesses.length+' beurten! +'+pts+' punten'); } else if(guesses.length>=MAXG){ recordGame('mastermind',5,{done:true,failed:true},'Mastermind niet gekraakt'); done('❌ Niet gekraakt. Code was: '+secret.map(i=>PAL[i]).join(' ')); } }
+    function render(){ board.innerHTML=''; board.appendChild(el('<p class="phNote phCenter">Kraak de geheime code van 4 kleuren in max '+MAXG+' beurten. ⚫ = juiste kleur op juiste plek · ⚪ = juiste kleur, verkeerde plek.</p>'));
+      guesses.forEach((x,i)=>board.appendChild(el('<div class="phBar"><span style="font-size:18px">'+(i+1)+'. '+x.g.map(c=>PAL[c]).join(' ')+'</span><span>'+('⚫'.repeat(x.fb.black)+'⚪'.repeat(x.fb.white)||'—')+'</span></div>')));
+      board.appendChild(el('<div class="phBar"><span style="font-size:20px">'+(cur.map(c=>PAL[c]).join(' ')||'· · · ·')+'</span></div>'));
+      const pal=el('<div class="phBtnRow phCenter" style="justify-content:center;margin:8px 0;flex-wrap:wrap"></div>'); PAL.forEach((e,i)=>{ const b=el('<button class="phBtn alt" style="font-size:22px;padding:6px 10px">'+e+'</button>'); b.onclick=()=>{ if(cur.length<LEN){ cur.push(i); render(); } }; pal.appendChild(b); }); board.appendChild(pal);
+      const row=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>'); const un=el('<button class="phBtn" style="background:#eef4f4;color:#0d3550">← Wis</button>'); un.onclick=()=>{ cur.pop(); render(); }; const ok=el('<button class="phBtn coral">Check ('+cur.length+'/'+LEN+')</button>'); ok.onclick=submit; row.appendChild(un); row.appendChild(ok); board.appendChild(row);
+    }
+    function done(msg){ board.appendChild(el('<p class="phCenter" style="font-weight:800;font-size:17px;margin-top:8px">'+esc(msg)+'</p>')); const r=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>'); const a=el('<button class="phBtn coral">Opnieuw ›</button>'); a.onclick=init; r.appendChild(a); board.appendChild(r); }
+    init();
+  }
+
+  /* ---------- MIJNENVEGER ---------- */
+  function mijnenveger(){
+    if(!document.getElementById('mvCss')){ const st=document.createElement('style'); st.id='mvCss'; st.textContent=`
+      .mvGrid{display:grid;gap:2px;max-width:340px;margin:6px auto;touch-action:manipulation}
+      .mvC{aspect-ratio:1/1;background:#cfe0e6;border-radius:4px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;cursor:pointer;user-select:none}
+      .mvC.open{background:#eef4f4}
+    `; document.head.appendChild(st); }
+    const R=9,C=9,M=10; let cells, started, dead, won, t0, tick, flagMode=false;
+    const wrap=el('<div></div>'); const p=panel('Mijnenveger 💣',wrap); p.querySelector('.phBack').onclick=()=>{ if(tick)clearInterval(tick); menu(); };
+    const bar=el('<div class="phBar"><span class="phNote" id="mvInfo">💣 '+M+' · 0s</span><button class="phBtn alt" id="mvFlag" style="padding:6px 12px">🚩 Vlag: uit</button></div>'); wrap.appendChild(bar);
+    const grid=el('<div class="mvGrid"></div>'); wrap.appendChild(grid);
+    wrap.appendChild(el('<p class="phNote phCenter">Tik om te openen. Zet “Vlag” aan om mijnen te markeren. Alle veilige vakjes open = gewonnen. Snelste tijd telt.</p>'));
+    const fb=bar.querySelector('#mvFlag'); fb.onclick=()=>{ flagMode=!flagMode; fb.textContent='🚩 Vlag: '+(flagMode?'aan':'uit'); fb.style.background=flagMode?'#ff6f68':''; fb.style.color=flagMode?'#fff':''; };
+    function init(){ cells=[]; for(let i=0;i<R*C;i++)cells.push({mine:false,rev:false,flag:false,n:0}); started=false; dead=false; won=false; if(tick)clearInterval(tick); t0=0; render(); }
+    function nb(i){ const r=Math.floor(i/C), c=i%C, out=[]; for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){ if(!dr&&!dc)continue; const nr=r+dr,nc=c+dc; if(nr>=0&&nr<R&&nc>=0&&nc<C)out.push(nr*C+nc); } return out; }
+    function place(safe){ let placed=0; while(placed<M){ const k=Math.floor(Math.random()*R*C); if(cells[k].mine||k===safe)continue; cells[k].mine=true; placed++; } for(let i=0;i<R*C;i++){ if(cells[i].mine)continue; let n=0; nb(i).forEach(j=>{ if(cells[j].mine)n++; }); cells[i].n=n; } }
+    function reveal(i){ if(cells[i].rev||cells[i].flag)return; cells[i].rev=true; if(cells[i].n===0&&!cells[i].mine) nb(i).forEach(reveal); }
+    function checkWin(){ const revd=cells.filter(c=>c.rev&&!c.mine).length; if(revd===R*C-M){ won=true; clearInterval(tick); const sec=Math.floor((Date.now()-t0)/1000); const pts=Math.max(50,800-sec*4); recordGame('mijnenveger',pts,{done:true,sec},'Mijnenveger: '+sec+'s'); render(); toast('🎉 Opgelost in '+sec+'s'); } }
+    function tap(i){ if(dead||won)return; if(!started){ started=true; place(i); t0=Date.now(); tick=setInterval(()=>{ const e2=document.getElementById('mvInfo'); if(e2){ const flags=cells.filter(c=>c.flag).length; e2.textContent='💣 '+(M-flags)+' · '+Math.floor((Date.now()-t0)/1000)+'s'; } },1000); }
+      if(flagMode){ if(!cells[i].rev) cells[i].flag=!cells[i].flag; render(); return; }
+      if(cells[i].flag)return;
+      if(cells[i].mine){ dead=true; cells.forEach(c=>{ if(c.mine)c.rev=true; }); clearInterval(tick); render(); recordGame('mijnenveger',5,{done:true,dead:true},'Mijnenveger: ontploft'); toast('💥 Boem!'); return; }
+      reveal(i); render(); checkWin();
+    }
+    function render(){ grid.innerHTML=''; grid.style.gridTemplateColumns='repeat('+C+',1fr)'; cells.forEach((c,i)=>{ const e=el('<div class="mvC"></div>'); if(c.rev){ e.classList.add('open'); if(c.mine)e.textContent='💣'; else if(c.n){ e.textContent=c.n; e.style.color=['','#2b7bb0','#2e7d32','#d63a4a','#5e35b1','#c65b1e','#00838f','#333','#777'][c.n]; } } else if(c.flag){ e.textContent='🚩'; } e.onclick=()=>tap(i); grid.appendChild(e); }); }
+    init();
+  }
+
+  /* ---------- SIMON (geheugen) ---------- */
+  function simonGame(){
+    const PADS=[{c:'#2ecc71',f:329.6},{c:'#e74c3c',f:440},{c:'#f1c40f',f:277.2},{c:'#3498db',f:554.4}];
+    let seq, idx, playing, round, actx;
+    const wrap=el('<div></div>'); const p=panel('Simon 🎵',wrap); p.querySelector('.phBack').onclick=menu;
+    const info=el('<p class="phNote phCenter" id="siInfo">Druk op Start en kijk goed.</p>');
+    const gridw=el('<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:280px;margin:10px auto"></div>');
+    const pads=PADS.map((pd,i)=>{ const b=el('<button style="aspect-ratio:1/1;border:none;border-radius:16px;background:'+pd.c+';opacity:.5;cursor:pointer"></button>'); b.onclick=()=>press(i); gridw.appendChild(b); return b; });
+    const startb=el('<button class="phBtn coral" style="max-width:200px;margin:6px auto;display:block">▶ Start</button>');
+    wrap.appendChild(info); wrap.appendChild(gridw); wrap.appendChild(startb);
+    wrap.appendChild(el('<p class="phNote phCenter">Onthoud de reeks en tik hem na. Elke ronde komt er één kleur bij. Hoe verder je komt, hoe meer punten.</p>'));
+    startb.onclick=start;
+    function tone(f){ try{ if(!actx)actx=new (window.AudioContext||window.webkitAudioContext)(); const o=actx.createOscillator(),g=actx.createGain(); o.frequency.value=f; o.connect(g); g.connect(actx.destination); g.gain.value=.15; o.start(); o.stop(actx.currentTime+.3); }catch(e){} }
+    function flash(i){ pads[i].style.opacity='1'; tone(PADS[i].f); setTimeout(()=>{ pads[i].style.opacity='.5'; },300); }
+    function start(){ seq=[]; round=0; startb.textContent='▶ Opnieuw'; next(); }
+    function next(){ round++; seq.push(Math.floor(Math.random()*4)); idx=0; playing=true; info.textContent='Ronde '+round+' — kijk…'; let k=0; const iv=setInterval(()=>{ flash(seq[k]); k++; if(k>=seq.length){ clearInterval(iv); playing=false; info.textContent='Ronde '+round+' — jouw beurt'; } },700); }
+    function press(i){ if(playing||!seq||!seq.length)return; flash(i); if(i!==seq[idx]){ info.textContent='❌ Fout! Je haalde ronde '+(round-1)+'.'; recordGame('simon',Math.max(0,round-1),{done:true,round:round-1},'Simon: ronde '+(round-1)); seq=[]; return; } idx++; if(idx>=seq.length) setTimeout(next,650); }
+    info.textContent='Druk op Start.';
+  }
+
+  /* ---------- GALGJE (scoort mee) ---------- */
+  function galgje(){
+    const KIDS=['strand','zon','boot','fiets','ijsje','tent','berg','meer','eend','kaas','bloem','vlinder','appel','hond','poes','auto','bal','boom','wolk','vis'];
+    const VOLW=['vakantie','avontuur','waterval','croissant','uitzicht','kampvuur','zonsondergang','panorama','wandelroute','fietstocht','kajakken','bergmeer','ansichtkaart','zwemvest','picknick'];
+    const wrap=el('<div></div>'); const p=panel('Galgje 🪢',wrap); p.querySelector('.phBack').onclick=menu;
+    const body=el('<div></div>'); wrap.appendChild(body);
+    function pick(){ p.querySelector('.phBack').onclick=menu; body.innerHTML='<p class="phNote">Raad het woord letter voor letter. Kies je niveau:</p>'; const kid=kidsAllowed();
+      const k=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left'+(kid?'':';opacity:.55')+'"><span class="ic">'+(kid?'🧒':'🔒')+'</span><span class="tt">Kids'+(kid?'':' (op slot)')+'</span><span class="ds">'+(kid?'Korte, makkelijke woorden.':'Alleen voor Merle, Duuk en Linn.')+'</span></button>');
+      const v=el('<button class="phTile" style="width:100%;margin:6px 0;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left"><span class="ic">🧑</span><span class="tt">Volwassen</span><span class="ds">Langere vakantiewoorden.</span></button>');
+      k.onclick=()=>{ if(!kidsAllowed()){ kidsLockToast(); return; } round('kids'); }; v.onclick=()=>round('volw'); body.appendChild(k); body.appendChild(v);
+      if(!kid) body.appendChild(el('<p class="phNote phCenter" style="margin-top:6px">🔒 De <b>Kids</b>-variant is alleen voor Merle, Duuk en Linn.</p>'));
+    }
+    function round(level){ const word=shuffle(level==='kids'?KIDS:VOLW)[0].toUpperCase(); const MAX=8; let guessed=new Set(), wrong=0;
+      function draw(){ const shown=word.split('').map(ch=>guessed.has(ch)?ch:'_').join(' '); const done=word.split('').every(ch=>guessed.has(ch));
+        body.innerHTML='<div class="phBar"><span class="phNote">Fouten: '+wrong+'/'+MAX+'</span><span class="phTimer" style="font-size:22px">'+'😀😄😐😟😧😨😰💀'.charAt(Math.min(wrong,7))+'</span></div>';
+        body.appendChild(el('<p class="phQ phCenter" style="letter-spacing:5px;font-size:26px">'+esc(shown)+'</p>'));
+        if(done){ const pts=(MAX-wrong)*10+20; recordGame('galgje',pts,{done:true,wrong,word},'Galgje: '+word); return finish('🎉 Geraden! “'+word+'” · +'+pts+' punten'); }
+        if(wrong>=MAX){ recordGame('galgje',10,{done:true,failed:true},'Galgje niet geraden'); return finish('💀 Helaas! Het woord was: '+word); }
+        const kb=el('<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:10px"></div>'); 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach(L=>{ const b=el('<button class="phBtn alt" style="padding:8px 10px;min-width:32px">'+L+'</button>'); if(guessed.has(L)){ b.disabled=true; b.style.opacity='.35'; } b.onclick=()=>{ guessed.add(L); if(word.indexOf(L)<0) wrong++; draw(); }; kb.appendChild(b); }); body.appendChild(kb);
+      }
+      function finish(msg){ body.appendChild(el('<p class="phCenter" style="font-weight:800;font-size:17px;margin-top:8px">'+esc(msg)+'</p>')); const r=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>'); const a=el('<button class="phBtn coral">Nog een woord ›</button>'); a.onclick=()=>round(level); const t=el('<button class="phBtn alt">Ander niveau</button>'); t.onclick=pick; r.appendChild(a); r.appendChild(t); body.appendChild(r); }
+      draw();
+    }
+    pick();
+  }
+
+  /* ---------- HINTS (samen, party) ---------- */
+  function hints(){
+    const WORDS=['olifant','voetballer','zwemmen','pizza','Eiffeltoren','kampvuur','ijsje eten','fietsen','kabelbaan','pinguïn','goochelaar','tandenpoetsen','sneeuwpop','gitaar spelen','superheld','krokodil','stofzuigen','astronaut','waterval','picknick','skiën','tent opzetten','kikker','vuurwerk','robot','dokter','verstoppertje','zonnebrand smeren','kapper','tovenaar','draak','surfen','pannenkoek bakken','slapen','voetbal','giraffe','politieagent','dansen','ijsbeer','vliegtuig'];
+    const wrap=el('<div></div>'); const p=panel('Hints 🎭',wrap); p.querySelector('.phBack').onclick=()=>{ stop(); menu(); };
+    let pool, i, good, tleft, tick;
+    const body=el('<div></div>'); wrap.appendChild(body);
+    function stop(){ if(tick)clearInterval(tick); tick=null; }
+    function intro(){ stop(); body.innerHTML='<p class="phNote phCenter">Beeld het woord uit (of omschrijf het zonder het te zeggen), de rest raadt. Zoveel mogelijk goed in 60 seconden!</p>'; const b=el('<button class="phBtn coral" style="display:block;margin:12px auto">▶ Start ronde</button>'); b.onclick=play; body.appendChild(b); }
+    function play(){ pool=shuffle(WORDS); i=0; good=0; tleft=60; stop(); tick=setInterval(()=>{ tleft--; const t=document.getElementById('hT'); if(t)t.textContent=tleft+'s'; if(tleft<=0) endr(); },1000); show(); }
+    function show(){ if(i>=pool.length)pool=pool.concat(shuffle(WORDS)); body.innerHTML='<div class="phBar"><span class="phNote">Goed: '+good+'</span><span class="phTimer" id="hT">'+tleft+'s</span></div>'; body.appendChild(el('<p class="phQ phCenter" style="font-size:28px">'+esc(pool[i])+'</p>')); const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:12px"></div>'); const g=el('<button class="phBtn coral" style="font-size:17px">✓ Goed</button>'); g.onclick=()=>{ good++; i++; show(); }; const s=el('<button class="phBtn alt">→ Volgende</button>'); s.onclick=()=>{ i++; show(); }; r.appendChild(g); r.appendChild(s); body.appendChild(r); }
+    function endr(){ stop(); body.innerHTML='<p class="phCenter" style="font-size:22px;font-weight:800;color:var(--lake)">⏰ Tijd! '+good+' goed geraden</p>'; const r=el('<div class="phBtnRow phCenter" style="justify-content:center;margin-top:10px"></div>'); const a=el('<button class="phBtn coral">Nog een ronde ›</button>'); a.onclick=play; r.appendChild(a); body.appendChild(r); }
+    intro();
+  }
+
+  /* ---------- STAD-LAND-RIVIER (samen) ---------- */
+  function stadlandrivier(){
+    const CATS=['Stad','Land','Dier','Beroep','Eten','Merk','Jongensnaam','Meisjesnaam','Kleur','Sport'];
+    const LETTERS='ABCDEFGHIJKLMNOPRSTVWZ'.split('');
+    const wrap=el('<div></div>'); const p=panel('Stad-land-rivier 📝',wrap); p.querySelector('.phBack').onclick=()=>{ stop(); menu(); };
+    let tick, tleft;
+    const body=el('<div></div>'); wrap.appendChild(body);
+    function stop(){ if(tick)clearInterval(tick); tick=null; }
+    function round(){ stop(); const L=LETTERS[Math.floor(Math.random()*LETTERS.length)]; const cats=shuffle(CATS).slice(0,6); tleft=90;
+      body.innerHTML='<p class="phCenter" style="font-size:14px;color:#697983;margin-bottom:0">De letter is</p><p class="phCenter" style="font-size:64px;font-weight:800;color:var(--lake);margin:2px 0">'+L+'</p><p class="phTimer phCenter" id="slT" style="font-size:22px">90s</p>';
+      const list=el('<div style="max-width:320px;margin:8px auto"></div>'); cats.forEach(c=>list.appendChild(el('<div class="phBar"><span>'+c+'</span><span style="color:#c7d2cf">'+L+'…</span></div>'))); body.appendChild(list);
+      body.appendChild(el('<p class="phNote phCenter">Iedereen schrijft voor elke categorie een woord met <b>'+L+'</b>. Als iemand klaar is: “stop!”. Daarna samen nakijken en punten geven.</p>'));
+      const r=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>'); const st=el('<button class="phBtn alt">■ Stop klok</button>'); st.onclick=stop; const n=el('<button class="phBtn coral">Nieuwe letter ›</button>'); n.onclick=round; r.appendChild(st); r.appendChild(n); body.appendChild(r);
+      tick=setInterval(()=>{ tleft--; const t=document.getElementById('slT'); if(t)t.textContent=Math.max(0,tleft)+'s'; if(tleft<=0){ stop(); const t2=document.getElementById('slT'); if(t2)t2.textContent='⏰ Tijd!'; toast('Tijd! Nakijken maar.'); } },1000);
+    }
+    round();
+  }
+
+  /* ---------- TEKEN & RAAD (samen) ---------- */
+  function tekenraad(){
+    const WORDS=['huis','boom','zon','auto','kat','hond','vis','boot','bloem','ster','appel','ijsje','vlinder','olifant','slang','robot','raket','kasteel','regenboog','paraplu','fiets','trein','pinguïn','giraffe','krokodil','spook','cadeau','taart','voetbal','gitaar','brug','vulkaan','octopus','sneeuwpop','dinosaurus','clown','tent','berg','kaas','maan'];
+    const wrap=el('<div></div>'); const p=panel('Teken & raad ✏️',wrap);
+    const body=el('<div></div>'); wrap.appendChild(body); let word='';
+    body.appendChild(el('<p class="phNote phCenter">Eén persoon tekent, de rest raadt. Tik “Nieuw woord”, bekijk het stiekem (👁 vasthouden) en begin te tekenen!</p>'));
+    const wrow=el('<div class="phBtnRow phCenter" style="justify-content:center"></div>'); const nw=el('<button class="phBtn coral">🎲 Nieuw woord</button>'); const show=el('<button class="phBtn alt">👁 Woord (vasthouden)</button>'); wrow.appendChild(nw); wrow.appendChild(show); body.appendChild(wrow);
+    const wlabel=el('<p class="phCenter" style="font-size:20px;font-weight:800;min-height:26px;letter-spacing:1px"></p>'); body.appendChild(wlabel);
+    nw.onclick=()=>{ word=shuffle(WORDS)[0]; wlabel.textContent='••• (houd 👁 vast om te zien)'; };
+    const reveal=()=>{ if(word) wlabel.textContent=word.toUpperCase(); }; const hide=()=>{ if(word) wlabel.textContent='•••'; };
+    show.onmousedown=reveal; show.onmouseup=hide; show.onmouseleave=hide; show.addEventListener('touchstart',(e)=>{ e.preventDefault(); reveal(); },{passive:false}); show.addEventListener('touchend',(e)=>{ e.preventDefault(); hide(); });
+    const DPR=window.devicePixelRatio||1; const W=Math.min((window.innerWidth||360)-40,340), H=Math.round(W*0.78);
+    const cv=el('<canvas style="width:'+W+'px;height:'+H+'px;background:#fff;border:1px solid #d5e0dd;border-radius:12px;display:block;margin:8px auto;touch-action:none"></canvas>'); cv.width=W*DPR; cv.height=H*DPR; const ctx=cv.getContext('2d'); ctx.scale(DPR,DPR); ctx.lineWidth=3; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#0d3550'; body.appendChild(cv);
+    let drawing=false, lx, ly;
+    function pos(e){ const r=cv.getBoundingClientRect(); const t=e.touches?e.touches[0]:e; return [t.clientX-r.left, t.clientY-r.top]; }
+    function down(e){ e.preventDefault(); drawing=true; const q=pos(e); lx=q[0]; ly=q[1]; }
+    function moveD(e){ if(!drawing)return; e.preventDefault(); const q=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(q[0],q[1]); ctx.stroke(); lx=q[0]; ly=q[1]; }
+    function up(){ drawing=false; }
+    cv.addEventListener('mousedown',down); cv.addEventListener('mousemove',moveD); window.addEventListener('mouseup',up);
+    cv.addEventListener('touchstart',down,{passive:false}); cv.addEventListener('touchmove',moveD,{passive:false}); cv.addEventListener('touchend',up);
+    const tools=el('<div class="phBtnRow phCenter" style="justify-content:center;align-items:center;gap:8px"></div>'); ['#0d3550','#e74c3c','#2ecc71','#f1c40f','#e67e22'].forEach(c=>{ const b=el('<button style="width:28px;height:28px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #d5e0dd;background:'+c+';cursor:pointer"></button>'); b.onclick=()=>ctx.strokeStyle=c; tools.appendChild(b); }); const clr=el('<button class="phBtn alt">🧽 Wissen</button>'); clr.onclick=()=>ctx.clearRect(0,0,W,H); tools.appendChild(clr); body.appendChild(tools);
+    p.querySelector('.phBack').onclick=()=>{ window.removeEventListener('mouseup',up); menu(); };
   }
 
   /* ---------- RESET ---------- */

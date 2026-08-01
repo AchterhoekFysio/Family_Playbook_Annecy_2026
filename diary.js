@@ -39,7 +39,7 @@
   .dgUpload{display:block;text-align:center;border:2px dashed #bcd3ce;border-radius:14px;padding:14px;color:#0f91a3;font-weight:800;cursor:pointer;margin:10px 0 4px;background:#fbfdfd}
   .dgGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .dgCell{position:relative;border-radius:11px;overflow:hidden;background:#e7eeec;border:1px solid #e2ecea}
-  .dgCell img{width:100%;height:96px;object-fit:cover;display:block}
+  .dgCell img{width:100%;height:120px;object-fit:cover;display:block;cursor:zoom-in}
   .dgCell .who{position:absolute;left:4px;top:4px;font-size:9px;color:#fff;background:rgba(0,0,0,.5);padding:1px 5px;border-radius:6px;max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .dgCap{width:100%;border:none;border-top:1px solid #eef2f1;padding:5px 6px;font-size:11px;background:#fff}
   .dgCellRow{display:flex}
@@ -54,7 +54,10 @@
   .dgPostHead{display:flex;align-items:center;gap:8px;padding:9px 11px}
   .dgAv{width:30px;height:30px;border-radius:50%;background:#0f91a3;color:#fff;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
   .dgPostHead b{font-size:13.5px}.dgPostHead .t{font-size:11px;color:#9aa8a4}
-  .dgPost>img{width:100%;max-height:62vh;object-fit:cover;display:block;background:#e7eeec}
+  .dgPost>img{width:100%;height:auto;max-height:72vh;object-fit:contain;display:block;background:#0d2233;cursor:zoom-in}
+  .dgLightbox{position:fixed;inset:0;z-index:7000;background:rgba(4,20,30,.93);display:flex;align-items:center;justify-content:center;padding:14px;cursor:zoom-out}
+  .dgLightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  .dgLightbox .cl{position:absolute;top:14px;right:16px;color:#fff;font-size:30px;font-weight:800;line-height:1}
   .dgCapEdit{width:100%;border:none;border-top:1px solid #eef2f1;padding:8px 11px;font-size:13.5px}
   .dgReactBar{display:flex;flex-wrap:wrap;gap:5px;padding:8px 10px;border-top:1px solid #eef2f1}
   .dgReact{border:1px solid #e2ecea;background:#f6faf9;border-radius:999px;padding:4px 10px;font-size:14px;cursor:pointer;line-height:1;display:flex;align-items:center;gap:4px}
@@ -74,6 +77,7 @@
   function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
   function toast(m){ let t=document.getElementById('dgToast'); if(!t){t=document.createElement('div');t.id='dgToast';t.style.cssText='position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:#0d3550;color:#fff;padding:11px 18px;border-radius:999px;font-weight:800;font-size:14px;z-index:6000;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transition:opacity .2s';document.body.appendChild(t);} t.textContent=m; t.style.opacity='1'; clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',2200); }
   function thumb(url,w){ try{ if(!url||url.indexOf('/storage/v1/object/public/')<0) return url; return url.replace('/storage/v1/object/public/','/storage/v1/render/image/public/')+(url.indexOf('?')>-1?'&':'?')+'width='+(w||300)+'&quality=62'; }catch(e){ return url; } }
+  function viewFull(url){ const ov=el('<div class="dgLightbox"><span class="cl">×</span></div>'); ov.appendChild(el('<img src="'+esc(thumb(url,1600))+'" alt="">')); ov.onclick=()=>ov.remove(); document.body.appendChild(ov); }
 
   async function loadAll(){
     const c=lc(), g=gid(); if(!c||!g) return;
@@ -142,7 +146,7 @@
 
   function photoCell(p){
     const cell=el('<div class="dgCell"></div>');
-    cell.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,300))+'" alt="">'));
+    const cimg=el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,300))+'" alt="">'); cimg.onclick=()=>viewFull(p.url); cell.appendChild(cimg);
     if(p.uploader_name) cell.appendChild(el('<span class="who">'+esc(p.uploader_name)+'</span>'));
     const cap=el('<input class="dgCap" placeholder="Bijschrift…">'); cap.value=p.caption||''; cap.onchange=()=>{ p.caption=cap.value; setCaption(p.id,cap.value); }; cell.appendChild(cap);
     const row=el('<div class="dgCellRow"></div>');
@@ -162,7 +166,7 @@
     const mv=el('<select title="Verplaats naar dag" style="font-size:11px;border:1px solid #e2ecea;border-radius:8px;padding:3px;color:#51707a;background:#fbfdfd">'+daySelect(p.diary_day)+'</select>'); mv.onchange=()=>moveDay(p.id,mv.value); head.appendChild(mv);
     let armed=false; const del=el('<button title="Verwijderen" style="border:none;background:#fdeceb;color:#c0392b;border-radius:8px;padding:4px 8px;font-size:12px;cursor:pointer;margin-left:4px">🗑</button>'); del.onclick=()=>{ if(!armed){ armed=true; del.textContent='?'; setTimeout(()=>{ armed=false; del.textContent='🗑'; },2200); return; } delPhoto(p); }; head.appendChild(del);
     post.appendChild(head);
-    post.appendChild(el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,900))+'" alt="">'));
+    const pimg=el('<img loading="lazy" decoding="async" src="'+esc(thumb(p.url,900))+'" alt="">'); pimg.onclick=()=>viewFull(p.url); post.appendChild(pimg);
     const cap=el('<input class="dgCapEdit" placeholder="Schrijf een bijschrift…">'); cap.value=p.caption||''; cap.onchange=()=>{ p.caption=cap.value; setCaption(p.id,cap.value); }; post.appendChild(cap);
     const rlist=reacts[p.id]||[]; const mine=rlist.find(x=>x.player_id===uid); const counts={}; rlist.forEach(x=>counts[x.emoji]=(counts[x.emoji]||0)+1);
     const bar=el('<div class="dgReactBar"></div>');
